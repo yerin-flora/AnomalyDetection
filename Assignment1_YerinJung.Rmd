@@ -1,0 +1,563 @@
+---
+title: "EDA Assignment 1"
+author: "Yerin Jung"
+date: "5/28/2018"
+output: 
+  html_document:
+    fig_height: 5
+    fig_width: 6.5
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Lead
+
+For the following questions, I am going to bring a number of Stock and ETF files into one single data frame, and inspect for further analyses in the future.  
+Especially, for each Stock and ETF data, I will examine whether there are anomalous values and, if so, why those anomalies happened in the data.    
+In addition, I will conduct feature engineering for later analyses.  
+\n
+\n
+
+# Analysis and R code
+
+## Required Libraries 
+ 
+ 
+```{r libraries}
+library(tidyverse)
+library(RcppRoll)
+library(plotly)
+```
+
+## Required Files  
+ 
+ 
+```{r warning = FALSE, message = FALSE} 
+stock_list <-list.files("/Users/Jung-yerin/Desktop/SUMMER 2018/AD/Data/Stocks")
+etf_list <-list.files("/Users/Jung-yerin/Desktop/SUMMER 2018/AD/Data/ETFs")
+length(stock_list);length(etf_list)
+```
+  
+\n  
+\n  
+There are total $7195$ files in `Stock` file and $1345$ files in `ETFs` file.  
+However, I was able to find some blank files (with no data at all) in Stock ones.  
+As such, I applied additional `file.info(file)$size > 0` when making a code to bring Stock files.  
+\n  
+\n  
+\n  
+
+```{r warning = FALSE, message = FALSE}
+# Make one common Stock File
+setwd("/Users/Jung-yerin/Desktop/SUMMER 2018/AD/Data/Stocks") 
+
+for (file in stock_list){
+  
+    if (!exists("stock_data")){
+      stock_data <- read_csv(file)
+      stock_data$Symbol <-gsub('(.*).us.txt','\\1',file)
+      write_csv(stock_data,"stock_data.csv", col_names = TRUE)
+    }
+ 
+    if (exists("stock_data") & file.info(file)$size > 0){
+      temp_data <-read_csv(file)
+      temp_data$Symbol <- gsub('(.*).us.txt','\\1',file)
+      write_csv(temp_data, "stock_data.csv", append = TRUE)
+  }
+}
+
+stock_DF<-read_csv("/Users/Jung-yerin/Desktop/SUMMER 2018/AD/Data/Stocks/stock_data.csv")
+dim(stock_DF)
+```
+
+  
+  
+  
+```{r warning = FALSE, message = FALSE}
+# Make one common ETF File
+setwd("/Users/Jung-yerin/Desktop/SUMMER 2018/AD/Data/ETFs")
+
+for (file in etf_list){
+       
+  if (!exists("etf_data")){
+    etf_data <- read_csv(file)
+    etf_data$Symbol <-gsub('(.*).us.txt','\\1',file)
+    write_csv(etf_data,"etf_data.csv", col_names = TRUE)
+  }
+   
+  if (exists("etf_data")){
+    temp_data <-read_csv(file)
+    temp_data$Symbol <- gsub('(.*).us.txt','\\1',file)
+    write_csv(temp_data, "etf_data.csv", append = TRUE)
+  }
+}
+
+etf_DF<-read_csv("/Users/Jung-yerin/Desktop/SUMMER 2018/AD/Data/ETFs/etf_data.csv")
+dim(etf_DF)
+```
+
+## Stock Data 
+
+### Exploratory
+ 
+ 
+```{r}
+summary(stock_DF)
+```
+  
+I found several NAs over four columns. As such, I decided to examine and remove them, unless they are critical. 
+  
+  
+  
+```{r}
+# Five examples with NA in the `High` column 
+stock_DF %>% filter(is.na(High)) %>% head()
+```
+
+So, I will remove those NAs and `Low==-1` that we have already detected during the first class.  
+
+\n
+\n
+\n
+
+```{r}
+stock <- stock_DF[complete.cases(stock_DF),]
+stock <-stock[stock$Low!=-1,]
+stock$Symbol <- toupper(stock$Symbol) #Just because UPPER Symbol is more familiar
+summary(stock)
+```
+\n
+\n
+\n
+Now, I am going to explore the data graphically.  
+  
+  
+```{r}
+stock %>% 
+  filter(Symbol=='AAPL'|Symbol=="IBM"|Symbol=="GOOGL")%>%
+  filter(Date>"2010-01-01")%>%
+  ggplot(aes(x=Date))+
+  geom_line(aes(y=High), colour='blue')+
+  geom_line(aes(y=Low), colour='grey')+
+  ylab(label="High and Low")+
+  facet_wrap(~Symbol, scales="free_y")+
+  ggtitle("Three Companies' Stocks Trends over time (High&Low)")
+```
+
+  
+  Firstly, I looked at the three major tech companies' stock prices (Daily High & Low) with adjusted scales.  
+  I was able to find that when one's stock price shows a rising tendency, it tends to have smaller gap between High and Low prices.  
+  
+  
+  
+```{r}
+stock%>%
+  ggplot(aes(x=Volume))+geom_histogram()+
+  ggtitle("Stocks Volume Histogram")
+
+stock %>%
+  ggplot(aes(x=log(Volume)))+geom_histogram()+
+  ggtitle("Stocks log(Volume) Histogram")
+```
+  
+  As we examined during the class, since the Volumne variable is highly right skewed, we would better to use log(Volume).  
+  
+  
+  
+
+### Feature Engineering 
+ 
+ 
+ 
+ I decided to do feature engineering to see more general trends from stock data.  
+ 
+ 
+
+```{r}
+
+stock <- stock %>%
+  group_by(Symbol) %>% 
+  mutate(Open_Change=Open-lag(Open),
+         High_Change=High-lag(High),
+         Low_Change=Low-lag(Low),
+         Close_Change=Close-lag(Close),
+         Volume_Change=Volume-lag(Volume)) %>%
+  mutate(Open_PctChange = (Open/lag(Open)-1) * 100, 
+         High_PctChange= (High/lag(High)-1) * 100,
+         Low_PctChange= (Low/lag(Low)-1) * 100,
+         Close_PctChange= (Close/lag(Close)-1) * 100,
+         Volume_PctChange= (Volume/lag(Volume)-1) * 100) %>% 
+  mutate(Open_Mean30=roll_mean(Open, 30, na.rm=TRUE, align="right", fill = NA),
+         High_Mean30=roll_mean(High, 30, na.rm=TRUE, align="right", fill = NA),
+         Low_Mean30=roll_mean(Low, 30, na.rm=TRUE, align="right", fill = NA),
+         Close_Mean30=roll_mean(Close, 30, na.rm=TRUE, align="right", fill = NA),
+         Volume_Mean30=roll_mean(Volume, 30, na.rm=TRUE, align="right", fill = NA)) %>% 
+  mutate(Open_Ch_Mean30=roll_mean(Open_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         High_Ch_Mean30=roll_mean(High_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         Low_Ch_Mean30=roll_mean(Low_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         Close_Ch_Mean30=roll_mean(Close_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         Volumne_Ch_Mean30=roll_mean(Volume_Change, 30, na.rm=TRUE, align="right", fill = NA)) %>%
+  mutate(Open_PctCh_Mean30=roll_mean(Open_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         High_PctCh_Mean30=roll_mean(High_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         Low_PctCh_Mean30=roll_mean(Low_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         Close_PctCh_Mean30=roll_mean(Close_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         Volumne_PctCh_Mean30=roll_mean(Volume_PctChange, 30, na.rm=TRUE, align="right", fill = NA)) %>%
+  ungroup()
+
+tail(stock)
+```
+
+
+```{r}
+stock %>% 
+  filter(Symbol=='AAPL'|Symbol=='GOOGL'|Symbol=="IBM")%>%
+  filter(Date>"2010-01-01")%>%
+  ggplot(aes(x=Date))+
+  geom_line(aes(y=High_Mean30), color="blue")+
+  geom_line(aes(y=Low_Mean30), color="grey")+
+  ylab(label="High_Mean30 and Low_Mean30")+
+  facet_wrap(~Symbol, scales="free_y")+
+  ggtitle("Three Companies' Mean High & Low Prices every 30 Days")
+```
+
+Compare to the previous Open price plot("Three Companies' Stocks Trends over time (High&Low)),  
+now the plot has way less granularity with maintaining the general trends.  
+As such, I am going to keep using `Open_Mean30` instead of `Open` to find interesting points from the data.
+  
+  
+  
+```{r}
+stock %>% 
+  filter(Symbol=='AAPL'|Symbol=='GOOGL'|Symbol=="IBM")%>%
+  filter(Date>"2016-01-01")%>%
+  ggplot(aes(x=Date, y=Open_Ch_Mean30, color=Symbol))+
+  geom_line()+
+  ggtitle("Three Companies' Avg. Change in Open Prices every 30 Days")
+
+stock %>% 
+  filter(Symbol=='AAPL'|Symbol=='GOOGL'|Symbol=="IBM")%>%
+  filter(Date>"2016-01-01")%>%
+  ggplot(aes(x=Date, y=Open_PctCh_Mean30, color=Symbol))+
+  geom_line()+
+  ggtitle("Three Companies' Avg. % Change in Open Prices every 30 Days")
+```
+  
+  
+In addition to making `XXXX_Mean30`, I also added average change every 30 days, such as `Open_Ch_Mean30`, and average % change every 30 days, such as `Open_PctCh_Mean30`.  
+By doing so, I wanted to see the general fluctuation changes of stock prices.  
+
+From the first plot, it looks like `GOOGL`'s open stock price fluctuates the most. While this is true, though, it is mainly because the company has the biggest stock quantity.  
+As we can see from the second plot, which is three tech companies' average % change in stock prices, the companies tend to show similar trends, except that `IBM` has a very different tendency during the first and second quarter of 2017. We may want to examine what happend during that time.  
+  
+  
+  
+  
+```{r}
+stock %>%
+  filter(Date>="2008-05-01" & Date <="2009-12-31") %>%
+  filter(Symbol=='XL'|Symbol=="GNW") %>%
+  ggplot(aes(x=Date, y=Open_Mean30, color=Symbol))+
+  geom_line()+
+  ggtitle("Stocks that Crashed in 2008")+
+  geom_vline(xintercept = as.Date(c("2008-09-01","2008-10-31")))
+
+stock %>%
+  filter(Date>="2008-05-01" & Date <="2009-12-31") %>%
+  filter(Symbol=='AMGN'|Symbol=="WMT") %>%
+  ggplot(aes(x=Date, y=Open_Mean30, color=Symbol))+
+  geom_line()+
+  ggtitle("Stocks that Thrived in 2008")+
+  geom_vline(xintercept = as.Date(c("2008-09-01","2008-09-30")))
+
+```
+\n  
+\n  
+The first plot depicts two stocks that performed the worst during the recession, and the second one describes two stocks that relatively thrived during the recession in 2008.  
+From further analyses, we might be able to analyze the reasons why some stocks especially crashed, while the others survived well.  
+
+
+
+## ETF Data 
+ 
+
+### Exploratory 
+
+```{r}
+summary(etf_DF)
+etfs <- etf_DF[complete.cases(etf_DF),]
+etfs$Symbol <- toupper(etfs$Symbol)
+summary(etfs) #After remove NAs and adjust Symbols
+```
+
+```{r}
+etfs %>%
+  filter(Open>10000000)
+```
+  
+  `UVXY` and `TVIX` showed extremely high OHLC prices during the certain period.   
+  `UVXY` has 8 splits in its history (https://www.splithistory.com/uvxy/), with the first starting on March 08, 2012.   
+  `TVIX` has 5 splits according to split.history.com(https://www.splithistory.com/?symbol=tvix), with the first on December 21, 2012.  
+   
+    
+  We can also see these two ETFs regarding splits via graphs.  
+  
+  
+  
+```{r}
+
+a <- list(text = "First Stock Split",
+          x = '2012-03-08',
+          y = 1.02,
+          xref = 'x',
+          yref = 'paper',
+          xanchor = 'left',
+          showarrow = FALSE
+          )
+
+# use shapes to create a line
+l <- list(type = line,
+          x0 = '2012-03-08',
+          x1 = '2012-03-08',
+          y0 = 0,
+          y1 = 1,
+          xref = 'x',
+          yref = 'paper',
+          line = list(color = 'black',
+                      width = 0.5)
+          )
+p <- etfs %>%
+  filter(Symbol=="UVXY")%>%
+  plot_ly(x = ~Date, type="ohlc",
+          open = ~Open, close = ~Close,
+          high = ~High, low = ~Low) %>%
+  layout(title = "UVXY With the First Stock Split",
+         annotations = a,
+         shapes = l, 
+         xaxis = list(rangeslider = list(visible = F)))
+
+p
+```
+  
+  
+```{r}
+
+a <- list(text = "First Stock Split",
+          x = '2012-12-21',
+          y = 1.02,
+          xref = 'x',
+          yref = 'paper',
+          xanchor = 'left',
+          showarrow = FALSE
+          )
+
+# use shapes to create a line
+l <- list(type = line,
+          x0 = '2012-12-21',
+          x1 = '2012-12-21',
+          y0 = 0,
+          y1 = 1,
+          xref = 'x',
+          yref = 'paper',
+          line = list(color = 'black',
+                      width = 0.5)
+          )
+p <- etfs %>%
+  filter(Symbol=="TVIX")%>%
+  plot_ly(x = ~Date, type="ohlc",
+          open = ~Open, close = ~Close,
+          high = ~High, low = ~Low) %>%
+  layout(title = "TVIX With the First Stock Split",
+         annotations = a,
+         shapes = l, 
+         xaxis = list(rangeslider = list(visible = F)))
+
+p
+```
+
+
+  
+```{r}
+etfs %>%
+  filter(Volume>1e+08)
+```
+  
+  All data do not seem to be technically abnormal.  
+
+\n
+\n
+\n
+Now, I am going to explore the data graphically.  
+  
+  
+```{r}
+etfs %>% 
+  filter(Symbol=='SPY'|Symbol=='EEM'|Symbol=="XLF")%>%
+  filter(Date>"2005-01-01")%>%
+  ggplot(aes(x=Date))+
+  geom_line(aes(y=High), color="blue")+
+  geom_line(aes(y=Low), color="grey")+
+  facet_wrap(~Symbol, scales="free_y")+
+  ylab(label="High and Low")+
+  ggtitle("Three ETFs High & Low Prices")
+```
+  
+  
+This time, I looked at three famous ETF's High and Low prices.  
+Generally, ETFs' prices had a slightly larger gap between High and Low than Stocks' ones.  
+
+Interestingly, I was able to find a strange looking High price from XLF, and decide to examine it.  
+
+
+
+
+```{r}
+etfs %>%
+  filter(Symbol=="XLF", High>40)
+```
+  
+There was only one day during the entire period that XLF's High price was over 50. 
+I seached the High price online (From Yahoo Finance), and was not able to find any price over 50.  
+As such, I assume that this was an error, and need to be adjusted.  
+
+
+
+```{r}
+etfs %>%
+  ggplot(aes(x=Volume))+geom_histogram()+
+  ggtitle("ETFs Volume Histogram")
+
+
+etfs %>%
+  ggplot(aes(x=log(Volume)))+geom_histogram()+
+  ggtitle("ETFs log(Volume) Histogram")
+```
+  
+  
+
+Like Stocks data, since the Volume is highly right skewed, it is better to see log(Volume). 
+  
+  
+
+### Feature Engineering 
+
+  
+  
+  
+I decided to do feature engineering to see more general trends from ETFs data.  
+  
+  
+  
+
+```{r}
+
+etfs <- etfs %>%
+  group_by(Symbol) %>% 
+  mutate(Open_Change=Open-lag(Open),
+         High_Change=High-lag(High),
+         Low_Change=Low-lag(Low),
+         Close_Change=Close-lag(Close),
+         Volume_Change=Volume-lag(Volume)) %>%
+  mutate(Open_PctChange = (Open/lag(Open)-1) * 100, 
+         High_PctChange= (High/lag(High)-1) * 100,
+         Low_PctChange= (Low/lag(Low)-1) * 100,
+         Close_PctChange= (Close/lag(Close)-1) * 100,
+         Volume_PctChange= (Volume/lag(Volume)-1) * 100) %>% 
+  mutate(Open_Mean30=roll_mean(Open, 30, na.rm=TRUE, align="right", fill = NA),
+         High_Mean30=roll_mean(High, 30, na.rm=TRUE, align="right", fill = NA),
+         Low_Mean30=roll_mean(Low, 30, na.rm=TRUE, align="right", fill = NA),
+         Close_Mean30=roll_mean(Close, 30, na.rm=TRUE, align="right", fill = NA),
+         Volume_Mean30=roll_mean(Volume, 30, na.rm=TRUE, align="right", fill = NA)) %>% 
+  mutate(Open_Ch_Mean30=roll_mean(Open_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         High_Ch_Mean30=roll_mean(High_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         Low_Ch_Mean30=roll_mean(Low_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         Close_Ch_Mean30=roll_mean(Close_Change, 30, na.rm=TRUE, align="right", fill = NA),
+         Volumne_Ch_Mean30=roll_mean(Volume_Change, 30, na.rm=TRUE, align="right", fill = NA)) %>%
+  mutate(Open_PctCh_Mean30=roll_mean(Open_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         High_PctCh_Mean30=roll_mean(High_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         Low_PctCh_Mean30=roll_mean(Low_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         Close_PctCh_Mean30=roll_mean(Close_PctChange, 30, na.rm=TRUE, align="right", fill = NA),
+         Volumne_PctCh_Mean30=roll_mean(Volume_PctChange, 30, na.rm=TRUE, align="right", fill = NA)) %>%
+  ungroup()
+
+tail(etfs)
+```
+  
+  
+  
+```{r}
+etfs %>% 
+  filter(Symbol=='SPY'|Symbol=='EEM'|Symbol=="XLF")%>%
+  filter(Date>"2005-01-01")%>%
+  ggplot(aes(x=Date))+
+  geom_line(aes(y=High_Mean30), color="blue")+
+  geom_line(aes(y=Low_Mean30), color="grey")+
+  facet_wrap(~Symbol, scales="free_y")+
+  ylab(label="High_Mean30 and Low_Mean30")+
+  ggtitle("Three ETFs' Mean High & Low Prices every 30 Days")
+```
+
+\n  
+\n  
+  
+Just like the Stocks case, now the plot has less granularity.  
+
+
+```{r}
+etfs %>% 
+  filter(Symbol=='SPY'|Symbol=='EEM'|Symbol=="XLF")%>%
+  filter(Date>"2005-01-01")%>%
+  ggplot(aes(x=Date, y=Open_Ch_Mean30, color=Symbol))+
+  geom_line()+
+  ggtitle("Three ETFs' Avg. Change in Open Prices every 30 Days")
+
+etfs %>% 
+  filter(Symbol=='SPY'|Symbol=='EEM'|Symbol=="XLF")%>%
+  filter(Date>"2005-01-01")%>%
+  ggplot(aes(x=Date, y=Open_PctCh_Mean30, color=Symbol))+
+  geom_line()+
+  ggtitle("Three ETFs' Avg. % Change in Open Prices every 30 Days")
+```
+
+
+
+As we can see from the above two plots, those three ETFs' stocks have a very similar tendency over time.  
+Although, there is an ETF that fluctuates more than the others(XLF), they mostly move along together.  
+
+
+
+# Conclusion 
+
+  1. Stock prices might need to be adjusted. Stocks can be split and dividends also affect the nominal value of stock price. As such, for more accurate analysis later, we need to adjust prices accordingly.   
+  2. There were some stocks that evidently performed the worst, and others that relatively thrived in the recession in 2008. We might want to explore the reasons why. 
+  3. The features that I have engineered will help me understand more general trends, with ignoring trivial daily errors.  
+    - `XXX_Change`(`Open_Change`, `Close_Change`, and so on) and `XXX_PctChange` will help me understand how a stock change daily.  
+    - `XXX_Mean30` will help me see the more general trend of a stock, by examining change in every 30 days.  
+    - `XXX_Ch_Mean30` and `XXX_PctCh_Mean30` will help me understand which stocks fluctuate severely than others.   
+  4. The current engineered features will have synergy effects once we can get to access external data, such as news or companies' industry and so on.   
+  
+  
+    
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
