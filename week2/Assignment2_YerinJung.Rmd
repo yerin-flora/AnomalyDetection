@@ -1,0 +1,396 @@
+---
+title: "EDA Assignment 2"
+author: "Yerin Jung"
+date: "06/01/2018"
+output: 
+  html_document:
+    fig_height: 5
+    fig_width: 6.5
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Lead
+
+  For this assignment, I followed three steps: 
+  
+  1. Sampling:  
+  - I am going to use systematic sampling, since the files are stored in chronological order.  
+  2. Feature Engineering:  
+  - I am going to make possibly useful features and examine each feature.  
+  3. Matrices Examination:  
+  - Using the features that I have created in section 2, I am going to examine some matrices.  
+  
+  
+  
+
+# EDA  
+
+  
+  Below chunks are to set up data and required functions.  
+  
+```{r}
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week2")
+source("telemetry-functions.R")
+sourceDir <- file.path("sourceData", "FEATURES-2014-2015")
+filenames <- list.files(sourceDir, full.names=TRUE) 
+library(RcppRoll)
+```
+
+
+```{r}
+# this file is used to translate original names and shortened names
+ss <- read_csv("features-schema-descriptions.csv")
+# need to still fix the names to be more R friendly
+new_names <- cleanNames(ss$short_name)
+```
+
+
+## Sampling Data
+
+I am going to use $Systematic$ $Sampling$ method for sampling, since the population is presented in chronological order.  
+To do so, I made a function to conduct systematic sampling.  
+  
+  
+  
+```{r}
+# A function to do systematic sampling
+sys_sampling = function(N,n){
+  k = ceiling(N/n)
+  r = sample(1:k, 1)
+  sys_samp = seq(r, r + k*(n-1), k)
+  cat("The selected systematic samples are: \"", sys_samp, "\"\n")
+  return(filenames[sys_samp])
+}
+
+set.seed(1993)
+sample(filenames,3)
+fileList <-sys_sampling(length(filenames),10)
+telemetryDF <- loadTelemetryFiles(fileList, new_names)
+
+print( sprintf("Sampled %d/%d files", length(fileList), length(filenames)) )
+
+plotCharLengthDistribution(names(telemetryDF), nBins = 20)
+```
+  
+
+## Feature Engineering
+  
+
+### Dataframe Exploration 
+
+  Before creating features, I will explore the data.frame as follows.  
+  
+```{r}
+class(telemetryDF)
+nrow(telemetryDF)
+
+# identifier columns
+idCols <-  c('host', 'process', 'timestamp', 'isAnomaly', 'No_data')
+
+# get the column names
+colNames <- names(telemetryDF)
+
+# these are identifiers and not telemetry metrics
+metricNames <- sort( colNames[! colNames %in% idCols] )
+
+# For anomaly detection or any modeling, we can remove those with NO change in value
+gatheredDF <- gather(telemetryDF %>% select(metricNames), "metric", "value" )
+
+head(gatheredDF)
+nrow(gatheredDF)
+
+metricDF <- gatheredDF %>% 
+  group_by(metric) %>% 
+  summarise(
+    count = n(), 
+    mean = mean(value), 
+    med = median(value), 
+    sd = sd(value), 
+    min = min(value), 
+    max = max(value),
+    Q1 = quantile(value, probs=.25, na.rm=TRUE),
+    Q3 = quantile(value, probs=.75, na.rm=TRUE)
+  )
+usefulMetrics <- metricDF %>% filter( min != max )
+nrow(usefulMetrics)
+
+
+# filter down to used metrics
+useCols <- c( idCols, unique(usefulMetrics$metric))
+
+telemetryDF2 <- telemetryDF %>% filter( No_data == 0 ) %>% select(useCols)
+
+
+```
+
+  
+  
+### Creating Features 
+
+  Now, I am going to create features.  
+  
+
+```{r}
+# First, we need to create a timestamp column
+telemetryDF2$TS <- as.POSIXct( strptime(telemetryDF2$timestamp, "%Y-%m-%d %H:%M") )
+
+telemetryDF2$Month <- as.numeric( strftime(telemetryDF2$TS, "%m")) 
+telemetryDF2$Date <- as.Date( strftime(telemetryDF2$TS, "%Y-%m-%d") )
+telemetryDF2$Hour <- as.numeric( strftime(telemetryDF2$TS, "%H") )
+telemetryDF2$Minute <- as.numeric( strftime(telemetryDF2$TS, "%M") )
+telemetryDF2$Weekday <- as.factor(strftime(telemetryDF2$TS, "%A"))
+telemetryDF2 <- telemetryDF2 %>%
+  mutate(Biz_Hour=as.factor(ifelse( !Weekday %in% c("Saturday","Sunday") &  telemetryDF2$Hour >=9 & telemetryDF2$Hour <=17, 1,0)))
+telemetryDF2$Weekend <- as.factor(ifelse(telemetryDF2$Weekday=='Saturday' |telemetryDF2$Weekday=='Sunday',1,0))
+
+telemetryDF2 <-
+  telemetryDF2 %>% mutate(Biz_Quarter=(cut(Month, breaks = 4, labels = c("Q1","Q2","Q3","Q4"))) )
+telemetryDF2 <- 
+  telemetryDF2 %>% mutate(rolling_window = cut(TS, '30 min'))
+
+```
+  
+  
+  I created `TS`, `Month`, `Date`, `Hour` and `Minute` just as we did during the class.  
+  In addition, I made `Weekday`, `Weekend`, `Biz_Hour`, `Biz_Quarter`, and `rolling_window` to detect any patterns in `isAnomaly`.  
+    
+    
+    
+  The descriptions for each variable are as follows:  
+    - `Weekday` : Day of Week  
+    - `Weekend` : 1 if a value of `Weekday` is weekend (Saturday or Sunday), 0 if not  
+    - `Biz_Hour` : 1 if a value of `Hour` is during the business hours (9 am to 5 pm), 0 if not  
+    - `Biz_Quarter` : `<Q1>` Jan, Feb, Mar `<Q2>` Apr, May, Jun `<Q3>` Jul, Aug, Sep `<Q4>` Oct, Nov, Dec  
+    - `rolling_window` : A time window every 30 minutes    
+
+
+### Examine Anomaly by Columns
+
+```{r}
+# Select columns that I want to group by
+groupCols <- c("host", "process", "Weekday", "Biz_Hour", "Weekend", "Biz_Quarter")
+useAnomaly<- telemetryDF2 %>% group_by_at( groupCols ) %>%
+  summarise(
+    count = n(),
+    sumAnomaly = sum( isAnomaly == "true" )
+  )
+
+# Grpahs to see summation of anomalies according to the each selected column
+
+## Weekday 
+
+useAnomaly %>% 
+  group_by(Weekday) %>%
+  mutate(Weekday_sum=sum(sumAnomaly)) %>%
+  ggplot(aes(x=Weekday, y=Weekday_sum))+
+  geom_bar(stat="identity", fill="skyblue")
+
+
+## Weekend
+
+useAnomaly %>% 
+  group_by(Weekend) %>%
+  mutate(Weekend_Sum=sum(sumAnomaly)) %>%
+  ggplot(aes(x=Weekend, y=Weekend_Sum))+
+  geom_bar(stat="identity", fill="skyblue")
+
+
+## Business Hour 
+
+
+useAnomaly %>% 
+  group_by(Biz_Hour) %>%
+  mutate(Biz_Sum=sum(sumAnomaly)) %>%
+  ggplot(aes(x=Biz_Hour, y=Biz_Sum))+
+  geom_bar(stat="identity", fill="skyblue")
+
+## Business Quarter
+
+useAnomaly %>% 
+  group_by(Biz_Quarter) %>%
+  mutate(Biz_Quarter_Sum=sum(sumAnomaly)) %>%
+  ggplot(aes(x=Biz_Quarter, y=Biz_Quarter_Sum))+
+  geom_bar(stat="identity", fill="skyblue")
+
+telemetryDF2 %>% group_by(Biz_Quarter) %>% summarise(n=n())
+
+
+```
+  
+  As grouping by each specific column, I was able to find some patterns in `sumAnomaly`.  
+  
+  1. `Weekday`  
+    - Apparently, anomaly tends to happen more on Friday and Thursday and less during the weekend.  
+     
+  2. `Weekend`
+    - Just as we saw in the above `Weekday` plot, most of the anomalies were detected during the weekdays.  
+    
+  3. `Biz_Hour`  
+    - Most of the anomalies were detected during the business hour, which is 9 am to 5 pm during the weekdays.  
+  
+  4. `Biz_Quarter`   
+    - According to the graph, most of the anomalies happened in either Quarter 1 or Quarter 4.   
+      This was the most strange-looking pattern, so I examined the original `telemetryDF2` data, to see whether `Q2` and `Q3` were somehow deleted.   
+    - As we can see from the above data.frame, it is true that `Q1` and `Q3` have more samples than `Q2` and `Q4` have. However, still, `Q3` has way more anomalies than `Q1` for its total row number (105958).    
+    - This pattern looks like need further exploration. 
+    
+    
+  
+## Matrices Examination  
+
+
+### Non-zero Matrices 
+  
+  
+  I am going to examine some matrices that presumably have a meaningful distribution (no constant 0 values).  
+  The descriptions for each matrix are as follows:  
+  - `Rel_physical_mem_usage_OperatingSystem`: Relative memory used  
+  - `Memory_space_usage_PS_Old_Gen_Used`: Used memory of max, PS Old Gen  
+  - `Memory_space_usage_Code_Committed`: Committed memory of max, Code  
+  - `Memory_space_usage_Code_Used`: Used memory of max, Code  
+  
+  
+  
+  
+```{r}
+col_agg <-c("Rel_physical_mem_usage_OperatingSystem", 
+            "Memory_space_usage_PS_Old_Gen_Used",
+            "Memory_space_usage_Code_Committed",
+            "Memory_space_usage_Code_Used")
+
+for (colum in col_agg) {
+  
+  print(plotDistribution(telemetryDF, colum, 50))
+}
+```
+  
+  
+  
+### Aggregating Columns 
+  
+  
+  For further examination, I made a summarized data.frame grouped by three columns, `host`, `process`, and `Weekday`.  
+  
+  
+  
+```{r}
+# columns to aggregate on
+groupCols <- c("host", "process", "Weekday")
+aggCols <- names(telemetryDF2)
+aggCols <- aggCols[! aggCols %in% c(groupCols, "timestamp", "isAnomaly", 
+                                    "No_data", "TS", "Month", "Date", "Hour", 
+                                    "Minute", "rolling_window", "Biz_Hour", "Weekend", "Biz_Quarter")]
+
+telemetryDF3 <- telemetryDF2 %>% 
+  group_by_at( groupCols ) %>%
+  summarize_at( aggCols, c("min", "mean", "max"), na.rm = TRUE )
+
+nrow(telemetryDF3)
+head(telemetryDF3)
+```
+
+### Different Plots by Weekday
+  
+  
+  
+```{r}
+# Function to make a histogram
+
+histFunction <- function(DataFrame=telemetryDF3, col_name, num_bin=10){
+  
+  aggCol <-col_name
+  sum_col_name = cat(col_name,'_sum',sep='') 
+  DataFrame %>%
+    ungroup %>%
+    mutate( sum_col_name = select(., aggCol) %>% rowSums()) %>%
+    ggplot(aes(x=sum_col_name))+
+    xlab(sum_col_name)+
+    geom_histogram(bins=num_bin, fill="skyblue")+
+    facet_wrap(~Weekday)+
+    labs(title = sum_col_name, x = sum_col_name, y = "Count")
+  
+}
+
+# Rel_physical_mem_usage_OperatingSystem_min
+plotDistribution(telemetryDF3, "Rel_physical_mem_usage_OperatingSystem_min", 50)
+histFunction(col_name = "Rel_physical_mem_usage_OperatingSystem_min")
+
+
+# Memory_space_usage_PS_Old_Gen_Used_min
+plotDistribution(telemetryDF3, "Memory_space_usage_PS_Old_Gen_Used_min", 50)
+histFunction(col_name = "Memory_space_usage_PS_Old_Gen_Used_min")
+
+
+# Memory_space_usage_Code_Committed_min
+plotDistribution(telemetryDF3, "Memory_space_usage_Code_Committed_min", 50)
+histFunction(col_name = "Memory_space_usage_Code_Committed_min")
+
+# Memory_space_usage_Code_Used_min
+plotDistribution(telemetryDF3, "Memory_space_usage_Code_Used_min", 50)
+histFunction(col_name = "Memory_space_usage_Code_Used_min")
+```
+  
+  
+  As we can see from the above plots, histograms showed different patterns by various `Weekday`.  
+  
+  
+
+
+
+# Conclusion
+
+
+
+  1. Sampling:  
+  - I believe that systematic sampling brings better a result than simple sampling.   
+  - However, still, it looks like systematic sampling resulted in unbalanced Business Quarters(`Biz_Quarter`):  
+    Q1	163367		Q2	21828			Q3	105958			Q4	88114	
+      
+  2. Feature Engineering:  
+  - `Weekday` and `Biz_Quarter` showed distinctive patterns
+  - Apparently, anomaly tends to happen more on Friday and Thursday and less during the weekend.  
+  - In addition, most of the anomalies happened in either Quarter 1 or Quarter 4. 
+  
+  3. Matrices Examination:  
+  - It looks like the overall pattern of a matrix's histogram is determined by the ones of Friday and Thursday.  
+     
+     
+     
+     
+     
+     
+    
+    
+    
+    
+    
+    
+    
+  
+  
+  
+  
+  
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
