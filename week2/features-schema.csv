@@ -1,0 +1,236 @@
+column,name,short_name,type
+1,host,host,chr
+2,process,process,chr
+3,timestamp,timestamp,dttm
+4,isAnomaly,isAnomaly,chr
+5,Prepared statement cache hit rate:((source06.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source06.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source06.JDBCDataSourceRuntime,dbl
+6,Memory space usage:((Code.MemoryPool.Usage.committed / Code.MemoryPool.Usage.max)),Memory space usage:Code.Committed,dbl
+7,Active connections:(source04.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source04.JDBCConnectionPoolRuntime,dbl
+8,Available db connection activity:(d/dx (source02.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source02.JDBCDataSourceRuntime,dbl
+9,Active connections:(source03.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source03.JDBCConnectionPoolRuntime,dbl
+10,DB connection started:(incld/dx (source02.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source02.JDBCDataSourceRuntime,dbl
+11,Heap usage activity:(d/dx (Memory.HeapMemoryUsage.used)),Heap usage activity,dbl
+12,Connection delay:(source10.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source10.JDBCDataSourceRuntime,dbl
+13,Stuck threads:(ThreadPoolRuntime.ThreadPoolRuntime.StuckThreadCount),Stuck threads:ThreadPoolRuntime,dbl
+14,Reserve request activity:(incld/dx (source02.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source02.JDBCDataSourceRuntime,dbl
+15,Stuck threads:(DataRetirementWorkManager.WorkManagerRuntime.StuckThreadCount),Stuck threads:DataRetirementWorkManager,dbl
+16,DB connection started:(incld/dx (source09.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source09.JDBCConnectionPoolRuntime,dbl
+17,Connection delay:(source06.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source06.JDBCDataSourceRuntime,dbl
+18,Active connections:(source01.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source01.JDBCDataSourceRuntime,dbl
+19,Memory space activity:(d/dx ((PS Old Gen.MemoryPool.Usage.committed / PS Old Gen.MemoryPool.Usage.max))),Memory space commited/max:PS Old Gen,dbl
+20,Active connections:(source08.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source08.JDBCConnectionPoolRuntime,dbl
+21,Rel. heap committed:((Memory.HeapMemoryUsage.committed / Memory.HeapMemoryUsage.max)),Rel. heap committed,dbl
+22,Active connections:(source05.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source05.JDBCConnectionPoolRuntime,dbl
+23,DB connection started:(incld/dx (source01.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source01.JDBCConnectionPoolRuntime,dbl
+24,Rel. nonHeap usage:((Memory.NonHeapMemoryUsage.used / Memory.NonHeapMemoryUsage.max)),Rel. nonHeap usage,dbl
+25,DB connection started:(incld/dx (source03.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source03.JDBCConnectionPoolRuntime,dbl
+26,Prepared statement cache hit rate:((source01.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source01.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source01.JDBCDataSourceRuntime,dbl
+27,Connection delay:(source03.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source03.JDBCDataSourceRuntime,dbl
+28,Reserve request activity:(incld/dx (source08.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source08.JDBCDataSourceRuntime,dbl
+29,Rel. Swap Usage:((\Swap\used / \Swap\total)),Rel. Swap Usage,dbl
+30,Stuck threads:(ClusterMessaging.WorkManagerRuntime.StuckThreadCount),Stuck threads:ClusterMessaging,dbl
+31,Failing reserve requests:(incld/dx (source04.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source04.JDBCDataSourceRuntime,dbl
+32,Failing reserve requests:(incld/dx (source06.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source06.JDBCDataSourceRuntime,dbl
+33,Failing reserve requests:(incld/dx (source08.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source08.JDBCDataSourceRuntime,dbl
+34,Stuck threads:(batchModules2.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:batchModules2,dbl
+35,Active connections:(source05.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source05.JDBCDataSourceRuntime,dbl
+36,Reserve request activity:(incld/dx (source10.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source10.JDBCDataSourceRuntime,dbl
+37,Memory space usage:((PS Perm Gen.MemoryPool.Usage.committed / PS Perm Gen.MemoryPool.Usage.max)),Memory space usage:PS Perm Gen.Committed,dbl
+38,Physical mem activity:(d/dx (OperatingSystem.FreePhysicalMemorySize)),Physical mem activity:OperatingSystem,dbl
+39,Stuck threads:(source02.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source02,dbl
+40,Reserve request activity:(incld/dx (source05.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source05.JDBCDataSourceRuntime,dbl
+41,Successful wait for connection:(incld/dx (source02.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source02.JDBCDataSourceRuntime,dbl
+42,Rel. unavailable connections:((source02.JDBCConnectionPoolRuntime.NumUnavailable / source02.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source02.JDBCConnectionPoolRuntime,dbl
+43,Memory space usage:((Code.MemoryPool.Usage.used / Code.MemoryPool.Usage.max)),Memory space usage:Code.Used,dbl
+44,Rel. nonHeap committed:((Memory.NonHeapMemoryUsage.committed / Memory.NonHeapMemoryUsage.max)),Rel. nonHeap committed,dbl
+45,Connection delay:(source09.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source09.JDBCDataSourceRuntime,dbl
+46,Available db connection activity:(d/dx (source05.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source05.JDBCDataSourceRuntime,dbl
+47,Process CPU:(OperatingSystem.ProcessCpuLoad),Process CPU: OperatingSystem,dbl
+48,Connection delay:(source09.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source09.JDBCConnectionPoolRuntime,dbl
+49,Class loading activity:(d/dx (ClassLoading.LoadedClassCount)),Class loading activity,dbl
+50,Memory space usage:((PS Survivor Space.MemoryPool.Usage.used / PS Survivor Space.MemoryPool.Usage.max)),Memory space usage:PS Survivor Space.Used,dbl
+51,Available db connection activity:(d/dx (source04.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source04.JDBCConnectionPoolRuntime,dbl
+52,GC activity:(incld/dx (PS Scavenge.GarbageCollector.CollectionCount)),GC activity:PS Scavenge,dbl
+53,Connection delay:(source02.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source02.JDBCConnectionPoolRuntime,dbl
+54,Failed wait for connection:(incld/dx (source01.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source01.JDBCDataSourceRuntime,dbl
+55,Rel. unavailable connections:((source01.JDBCConnectionPoolRuntime.NumUnavailable / source01.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source01.JDBCConnectionPoolRuntime,dbl
+56,Prepared statement cache hit rate:((source04.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source04.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source04.JDBCDataSourceRuntime,dbl
+57,Stuck threads:(DomainLogBroadcasterClient.WorkManagerRuntime.StuckThreadCount),Stuck threads:DomainLogBroadcasterClient,dbl
+58,DB connection started:(incld/dx (source10.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source10.JDBCDataSourceRuntime,dbl
+59,Stuck threads:(JmsDispatcher.WorkManagerRuntime.StuckThreadCount),Stuck threads:JmsDispatcher,dbl
+60,DB connection started:(incld/dx (source04.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source04.JDBCDataSourceRuntime,dbl
+61,DB connection started:(incld/dx (source02.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source02.JDBCConnectionPoolRuntime,dbl
+62,Available db connection activity:(d/dx (source03.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source03.JDBCConnectionPoolRuntime,dbl
+63,Stuck threads:(bea_wls_internal.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:bea_wls_internal,dbl
+64,Stuck threads:(sys01.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:sys01.default,dbl
+65,Failed wait for connection:(incld/dx (source02.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source02.JDBCDataSourceRuntime,dbl
+66,Thread User time:(Threading.CurrentThreadUserTime),Thread User time,dbl
+67,DB connection started:(incld/dx (source04.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source04.JDBCConnectionPoolRuntime,dbl
+68,Connection delay:(source01.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source01.JDBCConnectionPoolRuntime,dbl
+69,Active connections:(source06.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source06.JDBCConnectionPoolRuntime,dbl
+70,Available db connection activity:(d/dx (source09.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source09.JDBCDataSourceRuntime,dbl
+71,Stuck threads:(RMI.WorkManagerRuntime.StuckThreadCount),Stuck threads:RMI,dbl
+72,Thread CPU time:(Threading.CurrentThreadCpuTime),Thread CPU time,dbl
+73,Available db connection activity:(d/dx (source09.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source09.JDBCConnectionPoolRuntime,dbl
+74,Transaction committ activity:(incld/dx (JTARuntime.TransactionCommittedTotalCount)),Transaction committ activity:JTARuntime,dbl
+75,Memory space usage:((PS Old Gen.MemoryPool.Usage.used / PS Old Gen.MemoryPool.Usage.max)),Memory space usage:PS Old Gen.Used,dbl
+76,Stuck threads:(batchModules.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:batchModules,dbl
+77,No data,No data,dbl
+78,DB connection started:(incld/dx (source08.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source08.JDBCConnectionPoolRuntime,dbl
+79,Stuck threads:(source04.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source04,dbl
+80,Daemon thread count:(Threading.DaemonThreadCount),Daemon thread count,dbl
+81,Stuck threads:(HARVESTER_WM.WorkManagerRuntime.StuckThreadCount),Stuck threads:HARVESTER_WM,dbl
+82,Rel. unavailable connections:((source02.JDBCDataSourceRuntime.NumUnavailable / source02.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source02.JDBCDataSourceRuntime,dbl
+83,Available db connection activity:(d/dx (source06.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source06.JDBCDataSourceRuntime,dbl
+84,Memory space usage:((PS Eden Space.MemoryPool.Usage.committed / PS Eden Space.MemoryPool.Usage.max)),Memory space usage:PS Eden Space.Committed,dbl
+85,DB connection started:(incld/dx (source01.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source01.JDBCDataSourceRuntime,dbl
+86,Failing reserve requests:(incld/dx (source05.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source05.JDBCDataSourceRuntime,dbl
+87,Connection delay:(source01.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source01.JDBCDataSourceRuntime,dbl
+88,Memory space usage:((PS Eden Space.MemoryPool.Usage.used / PS Eden Space.MemoryPool.Usage.max)),Memory space usage:PS Eden Space.Used,dbl
+89,Prepared statement cache hit rate:((source09.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source09.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source09.JDBCDataSourceRuntime,dbl
+90,DB connection started:(incld/dx (source05.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source05.JDBCDataSourceRuntime,dbl
+91,Successful wait for connection:(incld/dx (source10.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source10.JDBCDataSourceRuntime,dbl
+92,DB connection started:(incld/dx (source10.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source10.JDBCConnectionPoolRuntime,dbl
+93,Stuck threads:(JmsAsyncQueue.WorkManagerRuntime.StuckThreadCount),Stuck threads:JmsAsyncQueue,dbl
+94,Class unloading activity:(d/dx (ClassLoading.UnloadedClassCount)),Class unloading activity,dbl
+95,Rel. unavailable connections:((source10.JDBCDataSourceRuntime.NumUnavailable / source10.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source10.JDBCDataSourceRuntime,dbl
+96,Reserve request activity:(incld/dx (source06.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source06.JDBCDataSourceRuntime,dbl
+97,Stuck threads:(bea_wls_cluster_internal.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:bea_wls_cluster_internal,dbl
+98,Successful wait for connection:(incld/dx (source09.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source09.JDBCDataSourceRuntime,dbl
+99,Connection delay:(source04.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source04.JDBCDataSourceRuntime,dbl
+100,Connection delay:(source05.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source05.JDBCDataSourceRuntime,dbl
+101,Rel. unavailable connections:((source10.JDBCConnectionPoolRuntime.NumUnavailable / source10.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source10.JDBCConnectionPoolRuntime,dbl
+102,Stuck threads:(source09.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source09,dbl
+103,Failed wait for connection:(incld/dx (source05.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source05.JDBCDataSourceRuntime,dbl
+104,Connection delay:(source04.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source04.JDBCConnectionPoolRuntime,dbl
+105,Stuck threads:(bea_wls_diagnostics.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:bea_wls_diagnostics,dbl
+106,Total thread count:(Threading.ThreadCount),Total thread count,dbl
+107,Stuck threads:(CdsAsyncRegistration.WorkManagerRuntime.StuckThreadCount),Stuck threads:CdsAsyncRegistration,dbl
+108,Stuck threads:(WTC.WorkManagerRuntime.StuckThreadCount),Stuck threads:WTC,dbl
+109,Available db connection activity:(d/dx (source08.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source08.JDBCConnectionPoolRuntime,dbl
+110,Prepared statement cache hit rate:((source08.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source08.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source08.JDBCDataSourceRuntime,dbl
+111,Rel. unavailable connections:((source06.JDBCConnectionPoolRuntime.NumUnavailable / source06.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source06.JDBCConnectionPoolRuntime,dbl
+112,Stuck threads:(ASYNC_REP_FLUSH_WM.WorkManagerRuntime.StuckThreadCount),Stuck threads:ASYNC_REP_FLUSH_WM,dbl
+113,Memory space usage:((PS Survivor Space.MemoryPool.Usage.committed / PS Survivor Space.MemoryPool.Usage.max)),Memory space usage:PS Survivor Space.Committed,dbl
+114,Stuck threads:(bea_wls9_async_response.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:bea_wls9_async_response,dbl
+115,Rel. unavailable connections:((source01.JDBCDataSourceRuntime.NumUnavailable / source01.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source01.JDBCDataSourceRuntime,dbl
+116,Stuck threads:(ImageWorkManager.WorkManagerRuntime.StuckThreadCount),Stuck threads:ImageWorkManager,dbl
+117,Memory space activity:(d/dx ((Code.MemoryPool.Usage.used / Code.MemoryPool.Usage.max))),Memory space activity:Code.Used,dbl
+118,Objects to be finalized:(Memory.ObjectPendingFinalizationCount),Objects to be finalized,dbl
+119,Stuck threads:(source03.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source03,dbl
+120,Prepared statement cache hit rate:((source10.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source10.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source10.JDBCDataSourceRuntime,dbl
+121,Stuck threads:(wls-wsat.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:wls-wsat,dbl
+122,Rel. unavailable connections:((source06.JDBCDataSourceRuntime.NumUnavailable / source06.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source06.JDBCDataSourceRuntime,dbl
+123,Active connections:(source02.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source02.JDBCDataSourceRuntime,dbl
+124,Active connections:(source10.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source10.JDBCDataSourceRuntime,dbl
+125,Stuck threads:(Rejector.WorkManagerRuntime.StuckThreadCount),Stuck threads:Rejector,dbl
+126,Available db connection activity:(d/dx (source05.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source05.JDBCConnectionPoolRuntime,dbl
+127,Active connections:(source06.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source06.JDBCDataSourceRuntime,dbl
+128,DB connection started:(incld/dx (source05.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source05.JDBCConnectionPoolRuntime,dbl
+129,Prepared statement cache hit rate:((source02.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source02.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source02.JDBCDataSourceRuntime,dbl
+130,Successful wait for connection:(incld/dx (source06.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source06.JDBCDataSourceRuntime,dbl
+131,Heap committed activity:(d/dx (Memory.HeapMemoryUsage.committed)),Heap committed activity,dbl
+132,Stuck threads:(System.WorkManagerRuntime.StuckThreadCount),Stuck threads:System,dbl
+133,Rel. swap usage:((OperatingSystem.FreeSwapSpaceSize / OperatingSystem.TotalSwapSpaceSize)),Rel. swap usage:OperatingSystem,dbl
+134,Stuck threads:(OneWayJTACoordinatorWM.WorkManagerRuntime.StuckThreadCount),Stuck threads:OneWayJTACoordinatorWM,dbl
+135,Active connections:(source09.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source09.JDBCDataSourceRuntime,dbl
+136,Available db connection activity:(d/dx (source04.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source04.JDBCDataSourceRuntime,dbl
+137,Last GC duration:(PS Scavenge.GarbageCollector.LastGcInfo.duration),Last GC duration:PS Scavenge,dbl
+138,Failing reserve requests:(incld/dx (source01.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source01.JDBCDataSourceRuntime,dbl
+139,Rel. unavailable connections:((source04.JDBCConnectionPoolRuntime.NumUnavailable / source04.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source04.JDBCConnectionPoolRuntime,dbl
+140,Prepared statement cache hit rate:((source03.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source03.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source03.JDBCDataSourceRuntime,dbl
+141,Stuck threads:(sys02.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:sys02,dbl
+142,DB connection started:(incld/dx (source08.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source08.JDBCDataSourceRuntime,dbl
+143,Reserve request activity:(incld/dx (source09.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source09.JDBCDataSourceRuntime,dbl
+144,Rel. physical mem usage:((OperatingSystem.FreePhysicalMemorySize / OperatingSystem.TotalPhysicalMemorySize)),Rel. physical mem usage:OperatingSystem,dbl
+145,NonHeap usage activity:(d/dx (Memory.NonHeapMemoryUsage.used)),NonHeap usage activity,dbl
+146,Active connections:(source01.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source01.JDBCConnectionPoolRuntime,dbl
+147,Prepared statement cache hit rate:((source05.JDBCDataSourceRuntime.PrepStmtCacheHitCount / source05.JDBCDataSourceRuntime.PrepStmtCacheMissCount)),Prepared statement cache hit rate:source05.JDBCDataSourceRuntime,dbl
+148,Rel. unavailable connections:((source03.JDBCDataSourceRuntime.NumUnavailable / source03.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source03.JDBCDataSourceRuntime,dbl
+149,Memory space activity:(d/dx ((PS Survivor Space.MemoryPool.Usage.used / PS Survivor Space.MemoryPool.Usage.max))),Memory space activity:PS Survivor Space,dbl
+150,Connection delay:(source08.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source08.JDBCConnectionPoolRuntime,dbl
+151,Active connections:(source10.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source10.JDBCConnectionPoolRuntime,dbl
+152,Failed wait for connection:(incld/dx (source10.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source10.JDBCDataSourceRuntime,dbl
+153,DB connection started:(incld/dx (source06.JDBCConnectionPoolRuntime.ConnectionsTotalCount)),DB connection started:source06.JDBCConnectionPoolRuntime,dbl
+154,Rel. unavailable connections:((source08.JDBCConnectionPoolRuntime.NumUnavailable / source08.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source08.JDBCConnectionPoolRuntime,dbl
+155,Stuck threads:(Non-Blocking.WorkManagerRuntime.StuckThreadCount),Stuck threads:Non-Blocking,dbl
+156,NonHeap committed activity:(d/dx (Memory.NonHeapMemoryUsage.committed)),NonHeap committed activity,dbl
+157,Stuck threads:(UserLockout.WorkManagerRuntime.StuckThreadCount),Stuck threads:UserLockout,dbl
+158,GC time:(incld/dx (PS Scavenge.GarbageCollector.CollectionTime)),GC time:PS Scavenge,dbl
+159,Memory space activity:(d/dx ((PS Perm Gen.MemoryPool.Usage.used / PS Perm Gen.MemoryPool.Usage.max))),Memory space activity:PS Perm Gen.Used,dbl
+160,Rel. heap usage:((Memory.HeapMemoryUsage.used / Memory.HeapMemoryUsage.max)),Rel. heap usage,dbl
+161,Swap activity:(d/dx (OperatingSystem.FreeSwapSpaceSize)),Swap activity:OperatingSystem,dbl
+162,Stuck threads:(source08.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source08,dbl
+163,GC time:(incld/dx (PS MarkSweep.GarbageCollector.CollectionTime)),GC time:PS MarkSweep,dbl
+164,Successful wait for connection:(incld/dx (source04.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source04.JDBCDataSourceRuntime,dbl
+165,GC activity:(incld/dx (PS MarkSweep.GarbageCollector.CollectionCount)),GC activity:PS MarkSweep,dbl
+166,Active connections:(source03.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source03.JDBCDataSourceRuntime,dbl
+167,Memory space activity:(d/dx ((Code.MemoryPool.Usage.committed / Code.MemoryPool.Usage.max))),Memory space activity:Code.Committed,dbl
+168,Available db connection activity:(d/dx (source01.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source01.JDBCConnectionPoolRuntime,dbl
+169,Connection delay:(source05.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source05.JDBCConnectionPoolRuntime,dbl
+170,Memory space activity:(d/dx ((PS Old Gen.MemoryPool.Usage.used / PS Old Gen.MemoryPool.Usage.max))),Memory space used/max:PS Old Gen,dbl
+171,Stuck threads:(JTACoordinatorWM.WorkManagerRuntime.StuckThreadCount),Stuck threads:JTACoordinatorWM,dbl
+172,Available db connection activity:(d/dx (source10.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source10.JDBCDataSourceRuntime,dbl
+173,DB connection started:(incld/dx (source03.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source03.JDBCDataSourceRuntime,dbl
+174,Available db connection activity:(d/dx (source06.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source06.JDBCConnectionPoolRuntime,dbl
+175,Memory space activity:(d/dx ((PS Eden Space.MemoryPool.Usage.used / PS Eden Space.MemoryPool.Usage.max))),Memory space activity:PS Eden Space.Used,dbl
+176,Available db connection activity:(d/dx (source01.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source01.JDBCDataSourceRuntime,dbl
+177,Reserve request activity:(incld/dx (source03.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source03.JDBCDataSourceRuntime,dbl
+178,Active connections:(source09.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source09.JDBCConnectionPoolRuntime,dbl
+179,Failed wait for connection:(incld/dx (source06.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source06.JDBCDataSourceRuntime,dbl
+180,Successful wait for connection:(incld/dx (source08.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source08.JDBCDataSourceRuntime,dbl
+181,Rel. unavailable connections:((source05.JDBCDataSourceRuntime.NumUnavailable / source05.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source05.JDBCDataSourceRuntime,dbl
+182,Stuck threads:(wl_oldBootStrap.WorkManagerRuntime.StuckThreadCount),Stuck threads:wl_oldBootStrap,dbl
+183,System CPU:(OperatingSystem.SystemCpuLoad),System CPU: OperatingSystem,dbl
+184,Memory space usage:((PS Old Gen.MemoryPool.Usage.committed / PS Old Gen.MemoryPool.Usage.max)),Memory space usage:PS Old Gen.Committed,dbl
+185,Transaction roll back activity:(incld/dx (JTARuntime.TransactionRolledBackTotalCount)),Transaction roll back activity:JTARuntime,dbl
+186,Connection delay:(source10.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source10.JDBCConnectionPoolRuntime,dbl
+187,Memory space activity:(d/dx ((PS Survivor Space.MemoryPool.Usage.committed / PS Survivor Space.MemoryPool.Usage.max))),Memory space activity:PS Survivor Space.Committed,dbl
+188,Active connections:(source08.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source08.JDBCDataSourceRuntime,dbl
+189,Rel. unavailable connections:((source09.JDBCConnectionPoolRuntime.NumUnavailable / source09.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source09.JDBCConnectionPoolRuntime,dbl
+190,Stuck threads:(weblogic.kernel.Default.WorkManagerRuntime.StuckThreadCount),Stuck threads:weblogic.kernel,dbl
+191,Stuck threads:(batchModules3.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:batchModules3,dbl
+192,Stuck threads:(direct.WorkManagerRuntime.StuckThreadCount),Stuck threads:direct,dbl
+193,Stuck threads:(LogBroadcaster.WorkManagerRuntime.StuckThreadCount),Stuck threads:LogBroadcaster,dbl
+194,Rel. open file descriptors:((OperatingSystem.OpenFileDescriptorCount / OperatingSystem.MaxFileDescriptorCount)),Rel. open file descriptors:OperatingSystem,dbl
+195,Rel. unavailable connections:((source05.JDBCConnectionPoolRuntime.NumUnavailable / source05.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source05.JDBCConnectionPoolRuntime,dbl
+196,Failing reserve requests:(incld/dx (source02.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source02.JDBCDataSourceRuntime,dbl
+197,Available db connection activity:(d/dx (source03.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source03.JDBCDataSourceRuntime,dbl
+198,Connection delay:(source03.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source03.JDBCConnectionPoolRuntime,dbl
+199,Rel. unavailable connections:((source09.JDBCDataSourceRuntime.NumUnavailable / source09.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source09.JDBCDataSourceRuntime,dbl
+200,Reserve request activity:(incld/dx (source04.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source04.JDBCDataSourceRuntime,dbl
+201,Active connections:(source02.JDBCConnectionPoolRuntime.ActiveConnectionsCurrentCount),Active connections:source02.JDBCConnectionPoolRuntime,dbl
+202,Failed wait for connection:(incld/dx (source04.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source04.JDBCDataSourceRuntime,dbl
+203,Memory space usage:((PS Perm Gen.MemoryPool.Usage.used / PS Perm Gen.MemoryPool.Usage.max)),Memory space usage.Used:PS Perm Gen.Used,dbl
+204,Stuck threads:(source01.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source01,dbl
+205,Connection delay:(source06.JDBCConnectionPoolRuntime.ConnectionDelayTime),Connection delay:source06.JDBCConnectionPoolRuntime,dbl
+206,Stuck threads:(source10.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source10,dbl
+207,Last GC duration:(PS MarkSweep.GarbageCollector.LastGcInfo.duration),Last GC duration:PS MarkSweep,dbl
+208,Reserve request activity:(incld/dx (source01.JDBCDataSourceRuntime.ReserveRequestCount)),Reserve request activity:source01.JDBCDataSourceRuntime,dbl
+209,Successful wait for connection:(incld/dx (source05.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source05.JDBCDataSourceRuntime,dbl
+210,Stuck threads:(bea_wls_deployment_internal.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:bea_wls_deployment_internal,dbl
+211,Failing reserve requests:(incld/dx (source09.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source09.JDBCDataSourceRuntime,dbl
+212,Rel. unavailable connections:((source03.JDBCConnectionPoolRuntime.NumUnavailable / source03.JDBCConnectionPoolRuntime.CurrCapacity)),Rel. unavailable connections:source03.JDBCConnectionPoolRuntime,dbl
+213,Memory space activity:(d/dx ((PS Perm Gen.MemoryPool.Usage.committed / PS Perm Gen.MemoryPool.Usage.max))),Memory space activity:PS Perm Gen.committed,dbl
+214,Available db connection activity:(d/dx (source02.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source02.JDBCConnectionPoolRuntime,dbl
+215,Failed wait for connection:(incld/dx (source09.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source09.JDBCDataSourceRuntime,dbl
+216,Failing reserve requests:(incld/dx (source03.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source03.JDBCDataSourceRuntime,dbl
+217,Failing reserve requests:(incld/dx (source10.JDBCDataSourceRuntime.FailedReserveRequestCount)),Failing reserve requests:source10.JDBCDataSourceRuntime,dbl
+218,Stuck threads:(source06.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source06,dbl
+219,DB connection started:(incld/dx (source09.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source09.JDBCDataSourceRuntime,dbl
+220,Active connections:(source04.JDBCDataSourceRuntime.ActiveConnectionsCurrentCount),Active connections:source04.JDBCDataSourceRuntime,dbl
+221,Successful wait for connection:(incld/dx (source01.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source01.JDBCDataSourceRuntime,dbl
+222,Memory space activity:(d/dx ((PS Eden Space.MemoryPool.Usage.committed / PS Eden Space.MemoryPool.Usage.max))),Memory space activity:PS Eden Space.Committed,dbl
+223,Connection delay:(source08.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source08.JDBCDataSourceRuntime,dbl
+224,Active transactions:(JTARuntime.ActiveTransactionsTotalCount),Active transactions:JTARuntime,dbl
+225,DB connection started:(incld/dx (source06.JDBCDataSourceRuntime.ConnectionsTotalCount)),DB connection started:source06.JDBCDataSourceRuntime,dbl
+226,Available db connection activity:(d/dx (source08.JDBCDataSourceRuntime.NumAvailable)),Available db connection activity:source08.JDBCDataSourceRuntime,dbl
+227,Available db connection activity:(d/dx (source10.JDBCConnectionPoolRuntime.NumAvailable)),Available db connection activity:source10.JDBCConnectionPoolRuntime,dbl
+228,Rel. unavailable connections:((source04.JDBCDataSourceRuntime.NumUnavailable / source04.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source04.JDBCDataSourceRuntime,dbl
+229,Failed wait for connection:(incld/dx (source08.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source08.JDBCDataSourceRuntime,dbl
+230,Rel. unavailable connections:((source08.JDBCDataSourceRuntime.NumUnavailable / source08.JDBCDataSourceRuntime.CurrCapacity)),Rel. unavailable connections:source08.JDBCDataSourceRuntime,dbl
+231,Stuck threads:(source05.default.WorkManagerRuntime.StuckThreadCount),Stuck threads:source05,dbl
+232,Process CPU:(\Process(java)\CPU),Process CPU,dbl
+233,Successful wait for connection:(incld/dx (source03.JDBCDataSourceRuntime.WaitingForConnectionSuccessTotal)),Successful wait for connection:source03.JDBCDataSourceRuntime,dbl
+234,Failed wait for connection:(incld/dx (source03.JDBCDataSourceRuntime.WaitingForConnectionFailureTotal)),Failed wait for connection:source03.JDBCDataSourceRuntime,dbl
+235,Connection delay:(source02.JDBCDataSourceRuntime.ConnectionDelayTime),Connection delay:source02.JDBCDataSourceRuntime,dbl
