@@ -1,0 +1,324 @@
+---
+title: "Assignment3"
+author: "Yerin Jung"
+date: "6/8/2018"
+output:
+  html_document:
+    fig_height: 7
+    fig_width: 6.5
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+  pdf_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+#########Set Up###########
+
+```{r libraries}
+# Required libraries
+library(tidyverse)
+library(RcppRoll)
+library(plotly)
+library(ggpubr)
+```
+
+
+```{r setup data}
+# Setting up the data
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week3")
+ccard <-read_csv("res_purchase_card_(pcard)_fiscal_year_2014_3pcd-aiuu.csv")
+```
+
+```{r}
+# Changing the column names 
+colnames(ccard)<-c('Year_Month', 'Agency_Number', 'Agency_Name', 'Cardholder_Last_Name',
+      'Cardholder_First_Initial', 'Description', 'Amount', 'Vendor', 'Transaction_Date',
+      'Posted_Date', 'Merchant_Category')
+```
+
+
+```{r}
+# Filtering the Amount column
+ccard <- ccard %>%filter(Amount>0)
+
+# Changing `Transaction_Date` as Date
+ccard <- ccard %>%
+  mutate(Transaction_Date=as.Date(Transaction_Date,format="%m/%d/%Y %H:%M"))
+```
+  
+  
+First, I wanted to filter the values with the Amount less than 0 (Since we are interested in FRAUD detection.)  
+Second, I changed `Transaction_Date` column into a Date format, for further analyses.  
+  
+  
+  
+# Aggregating by Time
+  
+## Lead
+  
+  In this section, I am going to examine the average/max amount of expenditure for a certain period of time.  
+  An agency is likely to have a consistent consumption pattern that does not deviate significantly from the average amount spent.  
+  When we detect irregular patterns or suddenly soaring amount of money, we might want to conduct further investigation.  
+  
+  
+## EDA
+  
+  
+  Function to make rolling mean and max in XX weeks:  
+  
+  
+```{r}
+Roll_MeanMax<- function(dataframe, nweeks){
+  
+  new_df <- dataframe %>% 
+    mutate(Weeks=strftime(Transaction_Date,format="%V"),
+           new_col=( (as.numeric(Weeks)-1)%/% nweeks ) )%>%
+    group_by(Agency_Name, new_col) %>%
+    mutate(new_col_2=mean(Amount, na.rm = TRUE),
+           new_col_3=max(Amount, na.rm = TRUE))%>%
+    ungroup()
+    
+  names(new_df)[names(new_df) == 'new_col'] <-paste("Every",nweeks,"Wks",sep="_")
+  names(new_df)[names(new_df) == 'new_col_2'] <-paste("RollMean",nweeks,"Wks",sep="_")
+  names(new_df)[names(new_df) == 'new_col_3'] <-paste("RollMax",nweeks,"Wks",sep="_")
+  
+  return(new_df)
+}
+```
+   
+   Function to make a rolling mean and rolling max plot:  
+   
+   
+   
+```{r}
+Roll_Plot <-function(dataframe, agency_name){
+  
+    avg_plot<- dataframe %>%
+                filter(Agency_Name==agency_name) %>%
+                ggplot(aes(x=Every_2_Wks, y=RollMean_2_Wks))+
+                geom_point()+
+                geom_line(color="red")+
+                ggtitle(paste("Avg. Amount Spent Every 2Weeks by", agency_name, sep=" "))
+              
+    max_plot<- dataframe %>%
+                filter(Agency_Name==agency_name) %>%
+                ggplot(aes(x=Every_2_Wks, y=RollMax_2_Wks))+
+                geom_point()+
+                geom_line(color="blue")+
+                ggtitle(paste("Max Amount Spent Every 2Weeks by", agency_name,sep=" "))
+    ggarrange(avg_plot, max_plot, nrow = 2)
+}
+```
+   
+  
+  Applying functions:  
+  
+
+```{r}
+# Making a data frame with new columns
+ccard_1 <-Roll_MeanMax(dataframe=ccard, nweeks=2)
+
+# Examine the new columns 
+ccard_1 %>% 
+  select(Agency_Name, Every_2_Wks, RollMean_2_Wks, RollMax_2_Wks) %>%
+  head(10)
+
+# Plotting the results 
+Roll_Plot(ccard_1,"UNIV. OF OKLA. HEALTH SCIENCES CENTER")
+Roll_Plot(ccard_1, "GRAND RIVER DAM AUTH.")
+
+```
+  
+  As we can see from the above two examples,  
+  there were some points that, all of sudden, the mean and max amount of expenditure of the agencies went through the roof.  
+  (2 points for "UNIV. OF OKLA. HEALTH SCIENCES CENTER", and 3 points for "GRAND RIVER DAM AUTH.")  
+  
+  
+  
+  
+## Conclusion  
+
+    
+  When the maximum amount in every XX weeks soared, but the average amount in the same given period did not, it is possible that the agency just spent more money than other periods during that certain time.  
+  Therefore, when it comes to fraud detection, we may want to examine the period when both the $average$ and the $maximum$ spent in XX weeks soared together.  
+  
+  In addition, by comparing the average/maximum amount in one period with others, we can more easily detect the soared amount of the average/maximum spent, which is highly suspicious.  
+  
+  
+  
+# Aggregating by Merchant Categories 
+
+## Lead
+  
+  
+In this section, I am going to examine spending patterns of agencies by different merchants (`Merchant_Category`).  
+One agency may spend across various merchant categories, or in just a few categories in a given time period.  
+I believe that if we are able to find an expenditure that is from different merchant categories with what we believe as a ???normal??? ones, we might be able to detect a fraud.  
+
+
+
+
+## EDA
+
+  
+  
+First, I am going to make two new columns  
+  - `Merchant_Mth_Sum`: Summation of each `Merchant_Category` by `Month`   
+  - `Merchant_Mth_Per`: Percentage of the summation in every montly expenditure  
+  
+```{r}
+# Creating a data frame with new columns 
+ccard_2 <- ccard_1 %>%
+  mutate(Month=strftime(Transaction_Date, format="%m")) %>%
+  group_by(Agency_Name, Month, Merchant_Category) %>%
+  mutate(Merchant_Mth_Sum=sum(Amount)) %>%
+  ungroup() %>%
+  group_by(Agency_Name, Month) %>%
+  mutate(Merchant_Mth_Per = Merchant_Mth_Sum/sum(Amount)) %>%
+  ungroup()
+# Examining the new columns
+ccard_2 %>% 
+  select(Agency_Name, Merchant_Category, Merchant_Mth_Sum, Merchant_Mth_Per) %>%
+  head(10)
+```
+  
+  
+  
+Second, I am going to make a function to print the merchant categories that take more than XX% (which I can set) and plot the results.  
+
+
+
+```{r}
+Merchant_Func<- function(dataframe, agency_name,filter_pct){
+  
+selected_df<- dataframe %>% 
+  filter(Agency_Name==agency_name) %>%
+  filter(Merchant_Mth_Per>filter_pct)
+selected_mer <- unique(selected_df$Merchant_Category)
+
+print(paste("The merchant categories over ",filter_pct,"% are:",sep=""))
+print(paste(selected_mer,collapse =", "))
+
+dataframe %>% 
+  filter(Agency_Name==agency_name) %>%
+  filter(Merchant_Mth_Per>filter_pct) %>%
+  ggplot(aes(x=Merchant_Category, y=Merchant_Mth_Per, color=Merchant_Category))+
+  geom_point()+
+  facet_wrap(~Month)+
+  ggtitle(agency_name)+
+  theme(axis.title.x=element_blank(),
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank())
+
+}
+```
+  
+  
+  
+  The interesting results as follows:  
+  
+  
+```{r}
+Merchant_Func(ccard_2, "OKLAHOMA STATE UNIVERSITY", 0.05)
+Merchant_Func(ccard_2, "UNIV. OF OKLA. HEALTH SCIENCES CENTER", 0.15)
+Merchant_Func(ccard_2, "DEPARTMENT OF CORRECTIONS", 0.15)
+```
+  
+  
+  1. Pattern with various components (Various Pattern)  
+  - As we can see from the first graph, "OKLAHOMA STATE UNIVERSITY" tend to spend across various merchant categories.  
+  There was no such category that takes more than 10% of the monthly outlay.  
+    
+    
+    
+  2. Pattern with a few dominant components (Monotonous Pattern)  
+  - On the other hand, "UNIV. OF OKLA. HEALTH SCIENCES CENTER" and "DEPARTMENT OF CORRECTIONS" tend to spend across only a few numbers of merchant categories.   
+    
+    
+  - `"UNIV. OF OKLA. HEALTH SCIENCES CENTER"`:   
+  As we can see from the second graph, in most of the months, they spent around 20% in `DENTAL/LABORATORY` category.  
+  However, we can see that in July and August, they suddenly spent on `Other Fees` up to 50%. 
+  Since it happened for consecutive two months, we may not be able to simply assume that it is highly likely to be a fraud.  
+  However, it still needs to be examined.  
+    
+    
+  - `"DEPARTMENT OF CORRECTIONS"`:  
+  In the third graph, we can see that they mostly spent on the `INDUSTRIAL SUPPLIES NOT ELSEWHERE CLASSIFIED` category.  
+  However, in May, suddenly `CATALOG MERCHANTS` showed up and the dominant `Industrial Supplies` disappeared. As such, it may need further examination. 
+  
+  
+## Conclusion
+  
+  By using the features that I have used above, we could find three distinctive pattern changes.  
+  
+  1. Various Pattern to Monotonous One
+  - If the various consumption patterns become monotonous, we could suspect this as a fraud.  
+  2. Variable Change in Monotonous Pattern  
+  - If the components of a monotonous consumption pattern change, we could suspect this as a fraud.  
+  - This is the case of "UNIV. OF OKLA. HEALTH SCIENCES CENTER" and "DEPARTMENT OF CORRECTIONS" above.  
+  3. Variable Change in Various Pattern  
+  - If the components that were evenly distributed turn into a combination of one or two dominant components, we could suspect this as a fraud.
+  
+  
+  
+# Examining Using Frequency
+
+## Lead
+
+  
+  When fraudsters try to commit fraud, first they would want to make sure whether transaction works. They probably check out a relatively small amount of money, and only if it works, would try bigger amount of money.  
+  
+  As such, in this section, I would like to find some cases that one transaction occurred in a long time (for example, in 10 days), but the next one occurred in a relatively short time, especially on the same date. 
+  In addition, if a `Merchant_Mth_Per` of the transactions is less than 5%, we may want to further examine whether it is a signal to be a fraud.  
+  (As we defined in the second section, `Merchant_Mth_Per` is a percentage of total amount of each `Merchant_Category` in every monthly expenditure)  
+  
+  
+  
+
+## EDA
+  
+  First, I am going to make a column to see how often transactions happen (`Time_Diff`).  
+  Second, I am going to make another column to distinguish transactions that have at least 10 days gap between the one and the previous transaction and 0-day gap between the one and the next transaction.  
+  
+  Finally, I am going to filter to find `Merchant_Mth_Per` less than 3%, since they can possibly be an abnormal expenditure.  
+   
+   
+   
+```{r}
+ccard_3 <- ccard_2 %>%
+              arrange(Agency_Name,Transaction_Date) %>%
+              mutate(Time_Diff = Transaction_Date-lag(Transaction_Date) ) %>%
+              mutate( Time_Gap=ifelse((Time_Diff>10 & lag(Time_Diff)==0), 1, 0) )
+
+ccard_3 %>%
+  filter(Time_Gap==1) %>%
+  filter(Merchant_Mth_Per<0.03) %>%
+  select(Agency_Name, Merchant_Category, Vendor, Amount)
+ 
+```
+
+  We can find the above 14 rows.  
+  
+  
+
+## Conclusion
+
+  Although the amount of spending in these 14 rows might be small and the column itself may not be as much as efficient as the others, they may imply a starting point of certain fraud.  
+  By keeping the `Time_Diff` and `Time_Gap` column, we will be able to build a more accurate model in the next steps.  
+  
+  
+  
+
+
+
+
+
+
+
