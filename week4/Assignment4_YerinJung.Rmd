@@ -1,0 +1,210 @@
+---
+title: "Assignment 4"
+author: "Yerin Jung"
+date: "6/15/2018"
+output:   
+  html_document:
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+#########Set Up###########
+
+```{r}
+#install.packages("zipcode")
+#install.packages("DataExplorer")
+library(dplyr)
+library(DataExplorer)
+#library(xda)
+library(ggplot2)
+library(plotly)
+library(data.table)
+library(zipcode)
+suppressPackageStartupMessages(library(tidyverse))
+library(stringr)
+#library(ggthemes)
+suppressPackageStartupMessages(library(maps))
+```
+
+
+```{r}
+#setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/AnomalyDetection/week4")
+payment <- read_csv("inpatientCharges.csv")
+```
+
+```{r}
+# Changing column names to remove space
+names(payment) <- c("DRG_Def", "Pro_Id", "Pro_Name","Pro_Add","Pro_City","Pro_State","Pro_Zip",
+                    "HRR","Tot_Discharges","Avg_Cov_Charges","Avg_Tot_Payments","Avg_Med_Payments")
+summary(payment)
+```
+
+```{r}
+# Parsing the numbers from Drug definition to see graphs effectively 
+payment <- payment %>%
+  mutate(DRG_Num=substr(x = DRG_Def, start=1, stop=3))
+```
+
+
+# Comparing Standardized Total Payment with The Other Providers 
+
+
+## Lead
+  
+  Generally, total payment of a care depends on the region(state) and type of drug function.  
+As such, to see whether there is abnormally high total payment (`Avg_Tot_Payments`), I decided to standardize the value, using the mean and standard deviation of `Avg_Tot_Payments` grouped by Drug Definition (`Drug_Num`) and Provider State (`Pro_State`).  
+
+  To do so, first, I should count the number of providers in each drug definition group. If there are just a few numbers of providers in the group, it might be less rational to compare the total payments. (In many cases there was only one provider in a drug function group.)    
+  
+  
+  
+  
+## EDA
+
+
+```{r}
+# Making groups dependin on the number of providers in each drug group
+payment1 <- payment %>% 
+  group_by(DRG_Def) %>%
+  mutate(n_row_group=n())%>%
+  ungroup()%>%
+  mutate(group_class= cut(n_row_group, breaks = 3, labels = c("1_to_945", "946_to_1890", "1890_to_2837")))
+
+payment1 %>%
+  select(DRG_Def,group_class) %>%
+  tail()
+
+# The graph of the third group, which has relatively many providers in each drug group
+payment1 %>%
+  filter(group_class=="1890_to_2837")%>%
+  ggplot(aes(x=Avg_Tot_Payments, y=DRG_Num))+
+  geom_point(colour="skyblue")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  scale_y_discrete(label=abbreviate)
+
+```
+
+  
+  
+  
+  Here, as I mentioned, I divided the dataset into three groups: `1_to_945`, `946_to_1890`, and `1890_to_2837`:  
+  - `1_to_945`: The number of entities in a drug definition group (`DRG_Def`) is a range of 1 to 946   
+  - `946_to_1890`: The number of entities in a drug definition group (`DRG_Def`) is a range of 946 to 1890  
+  - `1890_to_2837`: The number of entities in a drug definition group (`DRG_Def`) is a range of 1890 to 2837  
+  
+  
+  Then, I plotted `Avg_Tot_Payments` from only `1890_to_2837` group, to see the general trends.  
+  It looks like we see some outliers, though, we should not be so sure, since the price can also vary from states.  
+  
+  
+  
+```{r}
+# Making Three Columns after grouping by DRG_Num and Pro_State
+payment1<-payment1 %>%
+  group_by(DRG_Num, Pro_State) %>%
+  mutate(Mu_DRG_State_Total_Payment=mean(Avg_Tot_Payments), 
+         Sd_DRG_State_Total_Payment=sd(Avg_Tot_Payments),
+         Std_DRG_State_Total_Payment=(Avg_Tot_Payments-Mu_DRG_State_Total_Payment)/Sd_DRG_State_Total_Payment) %>%
+  ungroup()
+
+# Viewing some examples
+payment1 %>%
+  select(DRG_Num,Pro_State,Mu_DRG_State_Total_Payment,Sd_DRG_State_Total_Payment,Std_DRG_State_Total_Payment) %>%
+  filter(DRG_Num=="310")%>%
+  head()
+
+# Plotting standardized total_payment
+payment1 %>%
+  filter(group_class=="1890_to_2837"|group_class=="946_to_1890" ) %>%
+  ggplot(aes(x=Pro_Id, y=Std_DRG_State_Total_Payment))+
+  geom_point(aes(color=Pro_State))+
+  theme(axis.text.x = element_blank())
+
+```
+
+  After dividing into three group depending on the number of providers in drug_definition,    
+  I filtered only the second and third group, which basically have more than 946 providers in each drug definition group.    
+  
+  I generated three columns as follows:    
+  - `Mu_DRG_State_Total_Payment`: Mean of `Avg_Tot_Payments` grouped by drug group (`Drug_Num`) and state (`Prov_State`).  
+  - `Sd_DRG_State_Total_Payment`: Standard deviation of `Avg_Tot_Payments` grouped by drug group (`Drug_Num`) and state (`Prov_State`).  
+  - `Std_DRG_State_Total_Payment`: Standardized `Avg_Tot_Payments` using Z-score with `Mu_DRG_State_Total_Payment` and `Sd_DRG_State_Total_Payment`  
+  
+  
+  
+$$Z=\frac{X-\mu }{\sigma }=\frac{AvgTotalPayments-Mu(AvgTotalPayments)}{Sd(AvgTotalPayments)}$$
+  
+  
+  
+
+
+## Conclusion
+
+  As we can see from the above colorful graph, we can notice a few distinctively high standardized values, comparing to the other providers. We might want to further exam those values.  
+  Since they were outliers even after they were standardized by the mean grouped by state and drug as well, I believe that it has room to be a fraud case.  
+  
+  
+
+
+# Standardized Difference Between Medical Coverage and Medical Payment
+
+## Lead
+  
+  
+  
+According to [Data.CMS](https://data.cms.gov/Medicare-Inpatient/National-Summary-of-Inpatient-Charge-Data-by-Medic/efwk-h4x3), `Average Covered Charges` means the average charge of all provider's services covered by Medicare for discharges in the DRG.  
+Since this would vary from hospital to hospital, we should not simply assume a fraud, just because a provider overly charged Medicare to pay than they were supposed to cover.  
+However, we can calculate the mean difference of `Average Covered Charges` and `Average Medicare Payments` per each Drug group, and see whether an entity has significant difference than the other in the same group.  
+
+
+## EDA
+
+
+```{r}
+# Making Four New Columns
+payment2<-payment1 %>%
+  mutate(Diff_MedCov_MedPay=Avg_Cov_Charges-Avg_Med_Payments) %>%
+  group_by(DRG_Num) %>%
+  mutate(Mu_Diff=mean(Diff_MedCov_MedPay), Sd_Diff=sd(Diff_MedCov_MedPay)) %>%
+  mutate(Standard_Diff=(Diff_MedCov_MedPay-Mu_Diff)/Sd_Diff)%>%
+  ungroup()
+
+payment2 %>%
+  select(DRG_Num, Diff_MedCov_MedPay, Mu_Diff, Sd_Diff, Standard_Diff ) %>%
+  head()
+
+# Plotting a histogram
+payment2 %>%
+  ggplot(aes(x=Standard_Diff))+
+  geom_histogram()
+
+# Filtering intresting data
+payment2 %>% filter(Standard_Diff < -2)
+```
+  
+  First, I made three columns `Diff_MedCov_MedPay`, `Mu_Diff`, `Sd_Diff`, and `Standard_Diff`.  
+  - `Diff_MedCov_MedPay`: The difference between the amount that is covered by Medicare(`Avg_Cov_Charges`) and the amount Medicare actually paid (`Avg_Med_Payments`)  
+  - `Mu_Diff`: Average of `Diff_MedCov_MedPay` grouped by drug definition(`Drug_Num`). I grouped by drug definition, since some drugs might just require more money than it is generally covered.  
+  - `Sd_Diff`: Standard deviation of `Diff_MedCov_MedPay`.  
+  - `Standard_Diff`: Standardized values of `Diff_MedCov_MedPay`, using Z-score formula with `Mu_Diff` and `Sd_Diff`   
+
+$$Z=\frac{X-\mu }{\sigma }=\frac{DiffMedCovMedPay-MuDiff}{Sd_Diff}$$
+  
+  
+  
+## Conclusion
+
+  As we can see from the above graph, most of the providers were centered around zero. However, there were several providers with the standardized difference even less than -2.  
+  As such, I looked at the providers with the standardized difference even less than -2.  
+  As we can see from the above chart, there were $17$ providers who have a standardized difference of less than -2.  
+  This means the amount of money that Medicare paid to the providers was significantly higher than the amount to the other providers in the same drug definition.  
+  We may assume that those cases have a possibility to be a fraud, and examine them.  
+  
+  
+  
+
