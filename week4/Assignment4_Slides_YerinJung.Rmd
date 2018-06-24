@@ -1,0 +1,364 @@
+---
+title: "Revised Assignment4"
+author: "Yerin Jung"
+date: "June 23, 2018"
+output: 
+  ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+require(ggplot2)
+require(dplyr)
+require(readr)
+require(knitr)
+require(magrittr)
+source("health-functions.R")
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+
+## Contents
+
+- Table Examination
+- Columns Examination
+    - Numerical Columns
+- New Features
+    - Comparing Standardized Total Payment 
+    - Standardized Difference Between Medical Coverage and Medical Payment
+    - Number of Discharges
+
+
+
+```{r dataset, include=FALSE, message=FALSE}
+#setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/AnomalyDetection/week4")
+payment <- read_csv("inpatientCharges.csv")
+names(payment) <- c("DRG_Def", "Pro_Id", "Pro_Name","Pro_Add","Pro_City","Pro_State","Pro_Zip",
+                    "HRR","Tot_Discharges","Avg_Cov_Charges","Avg_Tot_Payments","Avg_Med_Payments")
+payment <- parse_num(payment)
+```
+
+# Table
+
+## Table Examination
+
+<span style="font-size: 20px;">- The colored ones are the columns that I am going to focus on for this EDA.</span>
+
+  
+```{r}
+kable(head(payment,2),"html") %>%
+  kable_styling(full_width = F, font_size = 10) %>%
+  column_spec(c(1,2,9,10,11,12), bold = T, border_right = T, width = "100%", background = "skyblue")%>%
+  scroll_box(height = "100%", width = "90%")
+```
+
+# Columns
+
+## Column Examination - Avg_Cov_Charges
+
+
+```{r}
+payment %>%
+  ggplot(aes(x=Avg_Cov_Charges))+
+  geom_histogram(binwidth = 1000, fill="skyblue")+
+  geom_vline(xintercept =63474, linetype="dashed",color="red")+
+  annotate(geom="text", x=250000, y=1000, label="3rd Quartile")+
+  ggtitle("Histogram of Average Covered Charges with 3rd Quartile")
+```
+
+
+## Column Examination - Avg_Tot_Payments
+
+
+```{r}
+payment %>%
+  ggplot(aes(x=Avg_Tot_Payments))+
+  geom_histogram(binwidth = 1000, fill="skyblue")+
+  geom_vline(xintercept =14655, linetype="dashed",color="red")+
+  annotate(geom="text", x=50000, y=1000, label="3rd Quartile")+
+  ggtitle("Histogram of Average Total Payments with 3rd Quartile")
+```
+
+## Column Examination - Avg_Med_Payments
+
+<span style="font-size: 16px;">
+- As we can see from the three histograms, all the variables are highly right-skewed.  
+</span>  
+
+```{r fig.width=6, fig.height=4}
+payment %>%
+  ggplot(aes(x=Avg_Med_Payments))+
+  geom_histogram(binwidth = 1000, fill="skyblue")+
+  geom_vline(xintercept =12442.5, linetype="dashed",color="red")+
+  annotate(geom="text", x=40000, y=1000, label="3rd Quartile")+
+  ggtitle("Histogram of Average Medicare Payments with 3rd Quartile")
+```
+
+  
+# New Features 
+
+## Introducing New Features
+<br />
+
+<span style="font-size: 25px;">
+  1.  Comparing Standardized Total Payment  
+</br >
+  2.  Standardized Difference Between  
+    Medical Coverage and Medical Payment  
+</br >
+  3.  Standardized Number of Discharges  
+</span>
+
+
+```{r payment1, include=FALSE}
+# Making groups dependin on the number of providers in each drug group
+payment1 <- group_class(payment)
+```
+
+
+# Comparing Standardized Total Payment
+
+## 1) Standardized Total Payment
+
+<span style="font-size: 18px;">
+  Here, I divided the dataset into three groups:  
+  `1_to_945`, `946_to_1890`, and `1890_to_2837`
+</span>
+
+```{r echo=FALSE}
+payment1_tail <- payment1 %>%
+  filter(n_row_group==1)%>%
+  select(DRG_Def,n_row_group, group_class) %>%
+  tail()
+
+kable(payment1_tail, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  column_spec(column=2, bold = T, border_right = T, width = "2Oem", background = "skyblue") %>%
+  scroll_box(height = "100%", width = "90%")
+```
+
+<span style="font-size: 18px;">
+  As we can see from the above table, there are certain drug definition groups that have only one entity(case).  
+</span>
+
+  
+## 1) Standardized Total Payment
+
+  
+```{r}
+# The graph of the third group, which has relatively many providers in each drug group
+payment1 %>%
+  filter(group_class=="1890_to_2837")%>%
+  ggplot(aes(x=Avg_Tot_Payments, y=DRG_Num))+
+  geom_point(colour="skyblue")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  geom_vline(xintercept = 50000, linetype="dashed", color="red")+
+  ggtitle("Avg Total Payments of the Drugs That Has More Than 1890 Cases within a Group")
+```
+<br />
+<span style="font-size: 16px;">
+  It looks like we see some outliers, though, we should not be so sure, since the price can also vary from states.  
+</span>  
+
+## 1) Standardized Total Payment
+```{r payment1_2, include=FALSE}
+# Making Three Columns after grouping by DRG_Num and Pro_State
+payment1<-add_standard_payment(payment1)
+```
+
+<span style="font-size: 18px;">
+  I generated three columns as follows:  
+  <br/ >
+  - `Mu_DRG_State_Total_Payment`: Mean of `Avg_Tot_Payments` grouped by drug group (`Drug_Num`) and state (`Prov_State`).  
+  <br/ >
+  - `Sd_DRG_State_Total_Payment`: Standard deviation of `Avg_Tot_Payments` grouped by drug group (`Drug_Num`) and state (`Prov_State`).  
+  <br/ >
+  - `Std_DRG_State_Total_Payment`: Standardized `Avg_Tot_Payments` using Z-score with `Mu_DRG_State_Total_Payment` and `Sd_DRG_State_Total_Payment`  
+</span>  
+
+## 1) Standardized Total Payment
+  
+```{r echo=FALSE}
+# Viewing some examples
+payment1_exp<- payment1 %>%
+  select(DRG_Num,Pro_State,Mu_DRG_State_Total_Payment,Sd_DRG_State_Total_Payment,Std_DRG_State_Total_Payment) %>%
+  filter(DRG_Num=="310")%>%
+  head()
+
+kable(payment1_exp,"html")%>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10) %>%
+  scroll_box(height = "100%", width = "90%")
+```
+
+<br />
+<span style="font-size: 18px;">
+  After dividing into three group depending on the number of providers in drug_definition,    
+  I filtered only the second and third group, which basically have more than 946 providers in each drug definition group.  
+</span>
+<br />
+
+## 1) Standardized Total Payment
+
+```{r fig.width=6.5, fig.height=4.5}
+# Plotting standardized total_payment
+payment1 %>%
+  filter(group_class=="1890_to_2837"|group_class=="946_to_1890" ) %>%
+  ggplot(aes(x=Pro_Id, y=Std_DRG_State_Total_Payment))+
+  geom_point(alpha=0.5, color="skyblue")+
+  theme(axis.text.x = element_blank())+
+  geom_hline(yintercept = 3, linetype="dashed",color="red")+
+  annotate(geom="text", x=70000, y=4, label="+3 Standard Deviation")+
+  geom_hline(yintercept = 7, linetype="dashed",color="red")+
+  annotate(geom="text", x=70000, y=8, label="+7 Standard Deviation")+
+  ggtitle("Standardized Total Payment by State and Drug Group")
+```
+<br />
+<span style="font-size: 16px;">
+ As we can see from the above graph, we can notice a few distinctively high standardized values.  
+ We might want to further exam those values.  
+</span>
+
+# Standardized Difference Between Medical Coverage and Medical Payment
+
+## 2) Difference Between Medical Coverage and Payment
+
+```{r payment2, include=FALSE}
+# Making Four New Columns
+payment2<-add_standard(payment1)
+```
+<span style="font-size: 16px;">
+  - First, I made three columns:  
+  `Diff_MedCov_MedPay`, `Mu_Diff`, `Sd_Diff`, and `Standard_Diff`.  
+</span>
+  <br />
+  
+$$Z=\frac{X-\mu }{\sigma }=\frac{DiffMedCovMedPay-MuDiff}{Sd_Diff}$$
+
+## 2) Difference Between Medical Coverage and Payment
+
+<span style="font-size: 18px;">
+This table below shows the examples of how standardized difference looks like. 
+</span>
+
+<br />
+
+```{r echo=FALSE}
+payment2_exp<- payment2 %>%
+  select(DRG_Num, Diff_MedCov_MedPay, Mu_Diff, Sd_Diff, Standard_Diff ) %>%
+  head()
+
+kable(payment2_exp, "html")%>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10) %>%
+  column_spec(5, bold = T, border_right = T, width = "20em", background = "skyblue")
+```
+
+## 2) Difference Between Medical Coverage and Payment
+
+```{r echo=FALSE}
+# Plotting a histogram
+payment2 %>%
+  ggplot(aes(x=Standard_Diff))+
+  geom_histogram(fill="skyblue")+
+  ggtitle("Standardized Difference between Avg_Cov_Charges and Avg_Med_Payments")+
+  xlab(label="Standardized Difference")+
+  geom_vline(xintercept = -2, linetype="dashed")+
+  annotate(geom="text", x=-3.8, y=40000, label="Area where \nMedicare paid \n way more than \nthey mostly cover")
+```
+
+
+## 2) Difference Between Medical Coverage and Payment
+<span style="font-size: 16px;">   
+As such, I looked at the providers with the standardized difference even less than -2.
+</span>
+```{r echo=FALSE}
+# Filtering intresting data
+payment2_interest <-payment2 %>% 
+  select(DRG_Num, Pro_Id, Avg_Cov_Charges,Avg_Med_Payments,Standard_Diff)%>%
+  filter(Standard_Diff < -2)
+kable(payment2_interest,"html")%>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size=10) %>%
+  column_spec(column=c(2,5), bold = T, border_right = T, width = "20em", background = "skyblue")%>%
+  row_spec(11, bold = T, color = "white", background = "green")%>%
+  scroll_box(height = "50%", width = "100%")
+```
+
+
+# Standardized Number of Discharges
+
+## 3) Number of Discharges
+
+```{r payment3, include=FALSE}
+payment3 <- add_standard2(payment2)
+```
+<span style="font-size: 16px;">
+  - First, I made `Mean_Discharge` and `Stdv_Discharges` to eventually create `Standardized_Discharges` column.    
+  - `Standardized_Discharges`: The standardized value of the number of discharges, grouped by drug and state.
+</span>
+</br >
+```{r echo=FALSE}
+payment3_exp <-payment3 %>%
+  select(DRG_Num, Pro_Id, Tot_Discharges, Standardized_Discharges)%>%
+  tail(100)%>%head()
+
+kable(payment3_exp,"html")%>%
+  kable_styling(full_width = FALSE, font_size = 10)%>%
+  column_spec(4, bold = T, border_right = T, width = "20em", background = "skyblue")
+```
+
+
+## 3) Number of Discharges
+<span style="font-size: 16px;">
+Next, I looked at the histogram of the standardized number of discharges.   
+  We can see that they are right-skewed.
+</span>
+</br >
+
+```{r echo=FALSE}
+payment3 %>%
+  ggplot(aes(x=Standardized_Discharges, na.rm=TRUE))+
+  geom_histogram(fill="skyblue")+
+  geom_vline(xintercept = 2, linetype="dashed",color="red")+
+  annotate(geom="text", x=3.5, y=30000, label="+2 Standard Deviation")+
+  ggtitle("Histogram of Standardized Number of Discharges")
+  
+```
+
+
+## 3) Number of Discharges
+<span style="font-size: 16px;">
+Finally, I combined the standardized number of discharges and the standardized difference. (`Standardized_Discharges` and`Standard_Diff`) and plotted as follows.
+</span>
+  
+```{r echo=FALSE}
+payment3 %>%
+  mutate(Col=as.factor(ifelse(Standard_Diff > 5, 1,0)))%>%
+  filter(Standardized_Discharges>2)%>%
+  ggplot(aes(x=Pro_Id, y=Standard_Diff,color=Col, na.rm=TRUE))+
+  geom_point(alpha=0.5)+
+  theme(legend.position="none")+
+  ylab(label="Diff Btwn the Madicare Coverage and Payment")+
+  ggtitle(label = "Providers With Number of Dischargs Twice Than the Average",
+          subtitle = "Blue colored are the ones who have bigger difference between coverage and paid")
+```
+
+
+## 3) Number of Discharges
+<span style="font-size: 16px;">
+- Since those $11$ cases are where the difference between Medicare coverage and Medicare payment is huge, and where more discharges happened as well, we might want to further examine those anomalies. 
+</span>
+</br >
+```{r echo=FALSE}
+payment3_inter<- payment3 %>%
+  filter(Standardized_Discharges>2)%>%
+  filter(Standard_Diff>=5)%>%
+  select(DRG_Num, Pro_Id, Standardized_Discharges, Standard_Diff)
+
+kable(payment3_inter,"html")%>%
+  kable_styling(full_width = FALSE, font_size = 10)%>%
+  column_spec(c(3,4), bold = T, border_right = T, width = "20em", background = "skyblue")%>%
+  scroll_box(height = "70%", width = "100%")
+```
+
+
+# Thank You!
+

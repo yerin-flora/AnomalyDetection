@@ -16,19 +16,7 @@ knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
 #########Set Up###########
 
 ```{r}
-#install.packages("zipcode")
-#install.packages("DataExplorer")
-library(dplyr)
-library(DataExplorer)
-#library(xda)
-library(ggplot2)
-library(plotly)
-library(data.table)
-library(zipcode)
-suppressPackageStartupMessages(library(tidyverse))
-library(stringr)
-#library(ggthemes)
-suppressPackageStartupMessages(library(maps))
+source("health-functions.R")
 ```
 
 
