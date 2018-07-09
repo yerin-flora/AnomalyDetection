@@ -1,0 +1,419 @@
+---
+title: "Assignment7"
+author: "Yerin Jung"
+date: "7/9/2018"
+output:   
+  html_document:
+    theme: lumen
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+
+# Data Preparation 
+
+```{r packages, echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(kableExtra)
+library(h2o)
+library(MeanShift)
+library(ggfortify)
+library(knitr)
+```
+
+```{r echo=FALSE}
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week7")
+ccard <- read_csv("ccard_ready.csv")
+```
+
+For this assignment, I am going to use credit card data.  
+The features here are the same with the ones that I have created for the Assignment 6.  
+
+
+```{r echo=FALSE}
+kable(head(ccard), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(height = "20%", width = "90%")
+
+```
+
+# Autoencoder
+
+
+
+In this section,  
+  - First, I will plot the data set using one hidden layer. Since Autoencoder uses a bottleneck model, we can do dimension-reduction via Autoencoder.  
+  - Second, I will detect anomalies using the mean squared error between the real value (input) and reconstructed value (output).  
+  
+  
+  
+  To do the above two agendas, I will initiate an h20 model.  
+  
+  
+```{r}
+h2o.init(nthreads=-1,enable_assertions = FALSE)
+```
+
+
+  
+   Next, I changed the data frame into an h2o-type data frame.  
+   
+   
+```{r results='hide'}
+ccard_hf <- as.h2o(ccard)
+```
+  
+
+```{r echo=FALSE}
+kable(head(ccard_hf), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(height = "20%", width = "90%")
+```
+
+  
+  Then, I split the train and test model.  
+  
+
+```{r}
+train_test <- h2o.splitFrame(ccard_hf, 
+                         ratios = c(0.4, 0.4), 
+                         seed = 101)
+
+train  <- train_test[[1]]
+test1  <- train_test[[2]]
+test2 <- train_test[[3]]
+
+features <- colnames(train)
+```
+
+
+
+
+
+
+  Now I am going to build an autoencoder model. 
+  I will use 3 hidden layers and will adjust later to see various results depending on the number of units in the hidden layers.  
+  
+  
+
+```{r results='hide'}
+model_nn <- h2o.deeplearning(x = features,
+                             training_frame = train,
+                             model_id = "model_nn",
+                             autoencoder = TRUE,
+                             seed = 101,
+                             hidden = c(10, 2, 10), 
+                             epochs = 100,
+                             activation = "Tanh")
+```
+
+
+
+## Dimensionality Reduction
+  
+  
+  
+  The below codes represent the way that I used to perform dimensionality reduction.   
+  
+  
+
+```{r results='hide' }
+train_features <- h2o.deepfeatures(model_nn, train, layer = 2) %>%
+  as.data.frame()
+```
+
+
+```{r}
+
+ggplot(train_features, aes(x = DF.L2.C1, y = DF.L2.C2)) +
+  geom_point(alpha = 0.1)+
+  ggtitle("Low dimensionality with Hidden Layer Units [10, 2, 10]")
+```
+
+
+## Anomaly Detection  
+
+  
+  Now, I am going to build a model to detect anomalies in the data set, using `h2o.anomaly` function.  
+  
+  
+```{r}
+anomaly <- h2o.anomaly(model_nn, test2) %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column()
+mean_mse <- anomaly %>%
+  summarise(mean = mean(Reconstruction.MSE))
+```
+
+```{r}
+ggplot(anomaly, aes(x = as.numeric(rowname), y = Reconstruction.MSE)) +
+  geom_point(alpha = 0.3) +
+  geom_hline(data = mean_mse, aes(yintercept = mean), color="blue") +
+  annotate(geom="text", x=100, y=0.05, label="Total Mean", color="blue")+
+  ggtitle("Reconstruction MSE for instances")
+```
+
+
+As we can see from the below table, $10$ cases were detected as outliers.  
+
+
+```{r echo=FALSE}
+anomaly <- anomaly %>%
+  mutate(outlier = ifelse(Reconstruction.MSE > 0.02, "outlier", "no_outlier"))
+
+anomaly_df <- anomaly %>% 
+  as.data.frame()
+
+test2_df <- test2 %>%
+  as.data.frame()
+
+test2_anomaly <- data.frame( Agency=test2_df$Agency_Name, Reconstruction.MSE=anomaly_df$Reconstruction.MSE, outlier=anomaly_df$outlier)
+
+ano_result <- test2_anomaly %>%
+  group_by(outlier) %>%
+  summarise(n = n())
+
+
+kable(ano_result, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE)
+```
+
+
+
+
+   To identify the agencies that were detected as outliers, I plotted a histogram.  
+  
+  
+```{r}
+
+test2_anomaly %>%
+  filter(outlier=="outlier")%>%
+  ggplot(aes(x=Agency))+
+  geom_histogram(stat="count", fill="skyblue")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Outliers from h2o")
+```
+
+
+  We can find $8$ agencies from the above histogram.  
+  
+  
+  
+
+# Mean-Shift
+
+
+  Due to the computational limit, I sampled only 20% of the entire dataset.  
+  After sampling, I scaled them.  
+  
+  
+```{r}
+set.seed(101)
+
+ind <-sample(nrow(ccard), floor(nrow(ccard)*0.2))
+ccard_sample <- ccard[ind,]
+ccard_sd<-scale(ccard_sample[,3:26])
+ccard_data <-t(ccard_sd) 
+dim(ccard_data)
+```
+
+## h=10.0
+
+ First, I will try msClustering with `h`=$10$.  
+ I will gradually increase the size of the bandwidth (10, 15, and 20) and compared the results.  
+ 
+ 
+ 
+  
+```{r results='hide'}
+ms_clustering1 <- msClustering( ccard_data, h=10.0 )
+```
+
+
+```{r}
+# Plotting using PCA
+ccard_ms1 <- ccard_sample
+ccard_ms1[,'ms_label'] <- ms_clustering1[2]
+ccard_ms1[,'ms_label'] <- as.factor(ccard_ms1$ms_label)
+autoplot(prcomp(ccard_ms1[,3:25]), data = ccard_ms1, colour = 'ms_label',frame=TRUE)
+```
+
+ 
+  As we can see from the below table, most of the values are labeled as one, and there were 25 labels in total.  
+  
+```{r}
+# Counting numbers by label
+anomaly_summary <- ccard_ms1 %>%
+  group_by(ms_label) %>%
+  summarise(n_count=n())
+
+
+kable(anomaly_summary, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(width = "500px", height = "300px")
+```
+
+  
+  
+ 
+ Finally, I looked at the name of the agencies, who have been detected as outliers (labeled other than 1).  
+
+
+
+```{r}
+ccard_ms1 %>%
+  filter(ms_label != 1) %>%
+  ggplot(aes(x=Agency_Name))+
+  geom_histogram(stat = "count", fill="skyblue")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Outliers from MeanShift with h=10.0")
+```
+  
+
+  
+  
+  
+## h=15.0
+  
+  
+  I tried the same approach with the parameter `h`=$15$.  
+  
+```{r results='hide'}
+ms_clustering2 <- msClustering( ccard_data, h=15.0 )
+```
+ 
+  
+```{r echo=FALSE}
+
+ccard_ms2 <- ccard_sample
+ccard_ms2[,'ms_label'] <- ms_clustering2[2]
+ccard_ms2[,'ms_label'] <- as.factor(ccard_ms2$ms_label)
+autoplot(prcomp(ccard_ms2[,3:25]), data = ccard_ms2, colour = 'ms_label',frame=TRUE)
+```
+  
+  
+  As we can see from the below table, with the parameter `h`=$15$, fewer instances were detected than when `h`=$10$ as outliers (other than 1).    
+  
+  
+```{r echo=FALSE}
+anomaly_summary2 <- ccard_ms2 %>%
+  group_by(ms_label) %>%
+  summarise(n_count=n())
+
+kable(anomaly_summary2, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(width = "500px", height = "300px")
+```
+  
+  
+  Finally, I also looked at the name of the agencies, who have been detected as outliers (labeled other than 1). 
+  
+  
+```{r echo=FALSE}
+ccard_ms2 %>%
+  filter(ms_label != 1) %>%
+  ggplot(aes(x=Agency_Name))+
+  geom_histogram(stat = "count", fill="skyblue")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Outliers from MeanShift with h=15.0")
+```
+  
+  In this case, only `OKLAHOMA STATE UNIVERSITY` and `OKLAHOMA MILITARY DEPARTMENT` have more than 1 outliers.  
+  
+  
+
+## h=20.0 
+  
+  
+  For the last parameter, I tried the same approach with the parameter `h`=$20$.  
+  
+```{r results='hide'}
+ms_clustering3 <- msClustering( ccard_data, h=20.0 )
+```
+
+
+  
+```{r echo=FALSE}
+ccard_ms3 <- ccard_sample
+ccard_ms3[,'ms_label'] <- ms_clustering3[2]
+ccard_ms3[,'ms_label'] <- as.factor(ccard_ms3$ms_label)
+autoplot(prcomp(ccard_ms3[,3:25]), data = ccard_ms3, colour = 'ms_label',frame=TRUE)
+```
+
+  
+  As we can see from the below table, with the parameter `h`=$20$, even fewer instances were detected as outliers (other than 1).  
+  Only 10 were detected as outliers.  
+  
+  
+```{r echo=FALSE}
+anomaly_summary3<- ccard_ms3 %>%
+  group_by(ms_label) %>%
+  summarise(n_count=n())
+
+kable(anomaly_summary3, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(height = "20%", width = "90%")
+```
+  
+  
+  If we plot the name of the agencies, we can see 10 different agencies.  
+  
+  
+
+```{r echo=FALSE}
+ccard_ms3 %>%
+  filter(ms_label != 1) %>%
+  ggplot(aes(x=Agency_Name))+
+  geom_histogram(stat = "count", fill="skyblue")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Outliers from MeanShift with h=20.0")
+```
+
+
+# Autoencoder and Meanshift
+  
+  Finally, I am going to compare the name of agencies who were detected as anomalies from `MeanShift` and `Autoencoder`.  
+  I chose `h`=$15$ for `MeanShift`.  
+    
+    
+    
+  As we can see from the below table, there were several agencies who appeared more than once either in each method only or both methods respectively.    
+  
+  
+```{r}
+ms_agency <- ccard_ms2 %>%
+  filter(ms_label != 1) %>%
+  dplyr::select(Agency_Name)
+names(ms_agency)[1] <-"Agency"
+
+auto_agency <-test2_anomaly %>%
+  filter(outlier=="outlier") %>%
+  dplyr::select(Agency)
+
+df_combined <- rbind(ms_agency, auto_agency)
+
+final <- df_combined %>% group_by(Agency)%>%
+  summarize(count_agency=n())
+
+kable(final, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10) %>%
+  row_spec(c(6, 10, 15, 16, 19), bold = T, color = "white", background = "skyblue")%>%
+  scroll_box(width = "500px", height = "300px")
+```
+
+
+
+
+
+
+
+
+
+

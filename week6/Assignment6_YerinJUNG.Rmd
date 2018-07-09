@@ -1,0 +1,341 @@
+---
+title: "Assignment 6"
+author: "Yerin Jung"
+date: "7/2/2018"
+output:   
+  html_document:
+    theme: lumen
+    number_sections: yes
+    toc: yes
+    toc_depth: 2
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning = FALSE, message = FALSE)
+```
+
+# Feature Engineering
+
+In addition to the features that were already created (features regarding `Max` ratio),  
+I will create `Median` ratio features, since I believe it could be a better way to detect outliers than `Mean` ratio features.  
+
+
+
+```{r packages, echo=FALSE}
+library(tidyverse)
+library(ggplot2)
+library(plotly)
+library(kableExtra)
+library(reshape2)
+library(fpc)
+library(dbscan)
+library(factoextra)
+```
+
+
+
+
+```{r data}
+#setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week6")
+ccard <- read_csv("purchase_credit_card.csv")
+```
+
+  
+  
+  After changing the column names, I will filter the rows that have amount less than 0, since our goal is to detect frauds.   
+
+```{r}
+colnames(ccard)<-c('Year_Month', 'Agency_Number', 'Agency_Name', 'Cardholder_Last_Name',
+      'Cardholder_First_Initial', 'Description', 'Amount', 'Vendor', 'Transaction_Date',
+      'Posted_Date', 'Merchant_Category')
+
+# Filtering the Amount column
+ccard <- ccard %>%filter(Amount>0)
+```
+
+  
+  
+
+
+
+
+```{r}
+# Calculate the average amount by agency_name and merchant category
+avg_agency <- ccard %>% group_by(Agency_Name, Merchant_Category) %>%
+       summarise( mean_category_amount = mean(Amount),
+                  mean_count_trans =n(),
+                  median_category_amount = median(Amount)
+                )
+```
+  
+  
+  As I mentioned earlier, I will create features to create `max_ratios`, and `median_ratios` later as follows.  
+  
+  
+```{r echo=FALSE}
+# Append the max, mean, and median statistics back to the data to derive the ratios.
+per_agency_category <- ccard %>% group_by(Agency_Name, Merchant_Category, Year_Month) %>%
+       summarise( max_amount = max(Amount),
+                  mean_amount = mean(Amount),
+                  median_amount = median(Amount),
+                  count_trans =n()
+                ) %>%
+       left_join(avg_agency, by=c('Agency_Name','Merchant_Category')) %>%
+       mutate( max_amount_ratio = max_amount / median_category_amount,
+               mean_amount_ratio = mean_amount / mean_category_amount,
+               median_amount_ratio = median_amount / median_category_amount,
+               mean_count_ratio  = count_trans / mean_count_trans
+       ) %>% select(-mean_category_amount,-median_category_amount, 
+                    -median_amount, -mean_count_trans, -max_amount, -mean_amount, -count_trans) %>%
+        top_n(-4)  # Use top_n(xx) to select the top xx rows, and top_n(-xx) for the bottom xx rows
+
+kable(per_agency_category[1:10,], "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(height = "90%", width = "90%")
+```
+
+
+
+## Max Ratios
+
+  
+  The below steps and table represent feature engineering for max ratios.  
+  
+  
+```{r}
+max_per_agency_category <- per_agency_category %>% 
+    mutate(Year_Month = paste("Max",Year_Month,sep="_")) %>%
+    select(-mean_amount_ratio, -median_amount_ratio, -mean_count_ratio)
+    
+# Use "dcast" in Library "reshape2" to organize the data so each row is a merchant category of an agent.
+max_wide <- dcast(max_per_agency_category, Agency_Name + Merchant_Category ~ Year_Month)
+max_wide=as.matrix(max_wide)
+max_wide[is.na(max_wide)] <-0
+max_wide=as.data.frame(max_wide)
+kable(head(max_wide), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(height = "90%", width = "90%")
+```
+
+
+## Median Ratios
+  
+  The below steps and table represent feature engineering for median ratios.  
+  
+```{r}
+
+median_per_agency_category <- per_agency_category %>% 
+    mutate(Year_Month = paste("Median",Year_Month,sep="_")) %>%
+    select(-max_amount_ratio, -mean_amount_ratio, -mean_count_ratio)
+
+# Use "dcast" in Library "reshape2" to organize the data so each row is a merchant category of an agent.
+median_wide <- dcast(median_per_agency_category, Agency_Name + Merchant_Category ~ Year_Month)
+median_wide=as.matrix(median_wide)
+median_wide[is.na(median_wide)] <-0
+median_wide=as.data.frame(median_wide)
+kable(head(median_wide), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(height = "90%", width = "90%")
+```
+
+
+  
+  
+## Final Data Frame  
+  
+  Finally, I joined the two data frame to perform further analyses.  
+  
+```{r}
+ccard_ready <- median_wide %>%
+  left_join(max_wide, by=c('Agency_Name','Merchant_Category'))
+kable(head(ccard_ready), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  column_spec(column=c(1,2), bold = T, border_right = T, width = "2Oem", background = "skyblue") %>%
+  scroll_box(height = "90%", width = "90%")
+```
+  
+  
+  
+  
+
+# PCA
+
+
+Since our current dataset is a high-dimension data, I performed PCA.  
+
+
+
+```{r}
+# Change values as numeric and remove infinite values
+cols <-colnames(ccard_ready)
+cols_name <- cols[3:26]
+for (i in cols_name){
+  ccard_ready[,i] <- as.numeric(as.character(ccard_ready[,i]))
+}
+
+is.na(ccard_ready)<-sapply(ccard_ready, is.infinite)
+ccard_ready[is.na(ccard_ready)]<-0
+
+# Dataset for PCA
+pca_ready <-ccard_ready[,-c(1,2)]
+kable(head(pca_ready), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), full_width = FALSE, font_size=10)%>%
+  scroll_box(height = "90%", width = "90%")
+
+# Perform PCA
+ccard.pca <- prcomp(pca_ready, scale = TRUE)
+
+# Plot PCA
+plot(ccard.pca, type="l")
+```
+
+
+# DBSCAN
+
+
+  To find outliers, I am going to use DBSCAN.  
+  The final goal of using DBSCAN is to identify dense regions, which can be detected by the number of objects close to a given point. [(Source)](http://www.sthda.com/english/articles/30-advanced-clustering/105-dbscan-density-based-clustering-essentials/)  
+  Especially, comparing to K-means, it performs better to detect arbitrary shapes.  
+  
+  
+  In addition, I used only two variables from the `PCA` result, to plot the outcome clusters.
+  
+  
+  
+  
+  
+  
+ In the following sections, I am going to test different parameters that I can adjust in DBSCAN method.
+ 
+ 
+## EPS = 5
+
+```{r echo=FALSE}
+# When eps is 5
+set.seed(123)
+df=ccard.pca$x[,1:2]
+    
+modl1 <- fpc::dbscan(df, eps = 5, MinPts = 10)
+fviz_cluster(modl1, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=5 and MinPts=10")
+
+modl2 <- fpc::dbscan(df, eps = 5, MinPts = 20)
+fviz_cluster(modl2, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+              main="DBSCAN wtih eps=5 and MinPts=20")
+
+modl3 <- fpc::dbscan(df, eps = 5, MinPts = 30)
+fviz_cluster(modl3, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=5 and MinPts=30")
+```
+
+  We can see that as we increase the `MinPts`, less points are detected as ouliers.  
+  
+  
+  
+## EPS = 10
+
+
+```{r echo=FALSE}
+# When eps is 10
+set.seed(123)
+df=ccard.pca$x[,1:2]
+    
+modl4 <- fpc::dbscan(df, eps = 10, MinPts = 10)
+fviz_cluster(modl4, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=10 and MinPts=10")
+
+modl5 <- fpc::dbscan(df, eps = 10, MinPts = 20)
+fviz_cluster(modl5, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=10 and MinPts=20")
+
+modl6 <- fpc::dbscan(df, eps = 10, MinPts = 30)
+fviz_cluster(modl6, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=10 and MinPts=30")
+```
+
+
+## EPS = 15
+
+
+```{r echo=FALSE}
+# When eps is 20
+modl7 <- fpc::dbscan(df, eps = 15, MinPts = 10)
+fviz_cluster(modl7, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=15 and MinPts=10")
+
+modl8 <- fpc::dbscan(df, eps = 15, MinPts = 20)
+fviz_cluster(modl8, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=15 and MinPts=20")
+
+modl9 <- fpc::dbscan(df, eps = 15, MinPts = 30)
+fviz_cluster(modl9, data = df, stand = FALSE,
+             ellipse = FALSE, show.clust.cent = FALSE,
+             geom = "point",palette = "jco", ggtheme = theme_classic(),
+             main="DBSCAN wtih eps=15 and MinPts=30")
+```
+
+
+# Final Results and Outliers
+  
+  
+  I have chosen `eps` to be $5$ and `MinPts` to be $20$, and plot the result as a histogram.  
+  
+  
+```{r echo=FALSE}
+
+ccard_result = data.frame(ccard_ready, cluster=modl2$cluster)
+
+ccard_result %>%
+  filter(cluster==0) %>%
+  select(Agency_Name, Merchant_Category) %>%
+  ggplot(aes(x=Agency_Name))+
+  geom_histogram(stat="count", fill="skyblue")+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+  ggtitle("Outliers with the Parameters: eps=5 and MinPts=20")
+
+
+```
+
+  
+  As we can see from the above plot, `DEPARTMENT OF TRANSPORTATION`, `GRAND RIVER DAM AUTH.`, and `UNIVERSITY OF OKLAHOMA` tend to have more outliers than other entities.  
+  Therefore, I assume that these agencies need further examination.  
+  
+   
+   
+   
+   
+   
+   
+   
+  
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
