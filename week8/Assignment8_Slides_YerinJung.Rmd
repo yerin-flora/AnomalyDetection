@@ -1,0 +1,661 @@
+---
+title: "Assignment8"
+author: "Yerin Jung"
+date: "July 17, 2018"
+output: 
+  ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{r packages, include=FALSE}
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week8")
+source("assignment8.R")
+```
+
+
+
+## Contents
+
+- Data Preparation
+- GLM
+  - Open_Close_PctChange
+  - Daily_Return
+- Random Forest
+  - Open_Close_PctChange
+  - Daily_Return  
+- Final Results & Business Insights
+
+
+
+```{r dataset, include=FALSE}
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week7")
+ccard <- read_csv("ccard_ready.csv")
+```
+
+```{r data, include=FALSE}
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week1/Data/Stocks")
+sp500URL <- getURL("https://raw.githubusercontent.com/datasets/s-and-p-500-companies/master/data/constituents.csv")
+sp500File <- file.path('data', 'constituents.csv')
+
+if (file.exists(sp500File)) {
+  sp500URL <- sp500File
+}
+
+# read in the SP500 information
+sp500Members <- read_csv( sp500URL )
+
+# read in the one file
+stockDF <- read_csv("stock_data.csv", col_types = c("Dddddnnc")) %>%
+  arrange(Symbol, Date)
+
+stockDF$Symbol <- toupper(stockDF$Symbol)
+
+sp500DF <- stockDF %>% filter (Symbol %in% sp500Members$Symbol)
+
+gStockDF <- sp500DF %>% 
+  group_by(Symbol) %>%
+  arrange(Date)
+
+gStockDF <- gStockDF[complete.cases(gStockDF),]
+```
+
+
+```{r features, include=FALSE}
+# first set of features
+df2 <- gStockDF %>% 
+  mutate(
+    Open_Close_PctChange = (Close-Open)/Open * 100,
+    
+    Open_Close_Delt = Delt(Open, Close, k = 0) * 100,
+    
+    Open_Change   = Open   - lag(Open),
+    High_Change   = High   - lag(High),
+    Low_Change    = Low    - lag(Low),
+    Close_Change  = Close  - lag(Close),
+    Volume_Change = Volume - lag(Volume),
+    
+    Daily_Return  = Close / Open,
+    
+    Open_PctChange   = Open_Change   / lag(Open)   * 100,
+    High_PctChange   = High_Change   / lag(High)   * 100,
+    Low_PctChange    = Low_Change    / lag(Low)    * 100,
+    Close_PctChange  = Close_Change  / lag(Close)  * 100,
+    Volume_PctChange = Volume_Change / lag(Volume) * 100,
+    
+    Open_Mean10   = roll_mean( Open,   10, fill = NA, na.rm = TRUE ),
+    High_Mean10   = roll_mean( High,   10, fill = NA, na.rm = TRUE ),
+    Low_Mean10    = roll_mean( Low,    10, fill = NA, na.rm = TRUE ),
+    Close_Mean10  = roll_mean( Close,  10, fill = NA, na.rm = TRUE ),
+    Volume_Mean10 = roll_mean( Volume, 10, fill = NA, na.rm = TRUE ),
+
+    Open_Mean10_R   = roll_meanr( Open,   10, fill = NA, na.rm = TRUE ),
+    High_Mean10_R   = roll_meanr( High,   10, fill = NA, na.rm = TRUE ),
+    Low_Mean10_R    = roll_meanr( Low,    10, fill = NA, na.rm = TRUE ),
+    Close_Mean10_R  = roll_meanr( Close,  10, fill = NA, na.rm = TRUE ),
+    Volume_Mean10_R = roll_meanr( Volume, 10, fill = NA, na.rm = TRUE ),
+    
+    Open_SD30   = roll_sd( Open,   30, fill = NA, na.rm = TRUE ),
+    High_SD30   = roll_sd( High,   30, fill = NA, na.rm = TRUE ),
+    Low_SD30    = roll_sd( Low,    30, fill = NA, na.rm = TRUE ),
+    Close_SD30  = roll_sd( Close,  30, fill = NA, na.rm = TRUE ),
+    Volume_SD30 = roll_sd( Volume, 30, fill = NA, na.rm = TRUE ),
+    
+    Open_VAR30   = roll_var( Open,   30, fill = NA, na.rm = TRUE ),
+    High_VAR30   = roll_var( High,   30, fill = NA, na.rm = TRUE ),
+    Low_VAR30    = roll_var( Low,    30, fill = NA, na.rm = TRUE ),
+    Close_VAR30  = roll_var( Close,  30, fill = NA, na.rm = TRUE ),
+    Volume_VAR30 = roll_var( Volume, 30, fill = NA, na.rm = TRUE ),
+    
+    Open_EMA10   = EMA(Open,   n = 10),
+    High_EMA10   = EMA(High,   n = 10),
+    Low_EMA10    = EMA(Low,    n = 10),
+    Close_EMA10  = EMA(Close,  n = 10),
+    Volume_EMA10 = EMA(Volume, n = 10),
+    
+    Open_SMA10   = SMA(Open,   n = 10),
+    High_SMA10   = SMA(High,   n = 10),
+    Low_SMA10    = SMA(Low,    n = 10),
+    Close_SMA10  = SMA(Close,  n = 10),
+    Volume_SMA10 = SMA(Volume, n = 10)
+
+  ) %>%
+  arrange(Symbol, Date)
+```
+
+```{r features2, include=FALSE}
+# add SP500 characteristics (sector)
+df3 <- df2 %>% left_join(sp500Members, by = "Symbol")
+
+# add weekdays and quarters 
+df3$DOW <- weekdays(df3$Date)
+df3$Quarter <- quarters(df3$Date)
+
+df3$Year <- as.numeric(format(df3$Date, "%Y"))
+df3$QtrYear <- sprintf("%s-%s", df3$Year, df3$Quarter)
+
+```
+
+# Data Preparation
+
+## Data - Feature Engineering 
+
+<span style="font-size: 18px;">
+After bringing the stock.csv data, I created features to build a model.  
+I additionally created `xxxx_SMA10` features which represent a Simple Moving Average.  
+</span>
+
+
+```{r echo=FALSE}
+kable(head(df3), "html" ) %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE)
+```
+
+
+## Data - Sample Range 
+
+<span style="font-size: 18px;">
+I selected the year between $2011$ and $2012$ for this assignment.
+</span>
+
+
+```{r select_year, echo=FALSE}
+qtrs <- df3 %>% 
+  ungroup %>% 
+  select(Year, QtrYear) %>% 
+  unique() %>% 
+  filter( between( Year, 2011, 2012) ) %>%
+  arrange( QtrYear )
+
+kable(qtrs, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE)
+```
+
+
+## Data - Train and Test 
+
+
+<span style="font-size: 18px;">
+As I selected year $2011$ and $2012$ I have five sets of training and testing.    
+</span>
+
+
+```{r echo=FALSE, fig.height=4}
+# train/test are 3 and 1 qtrs in duration
+trainLen <- 3
+testLen <- 1
+
+# rows in the data.frame
+trainStart <- 1
+trainStop <- nrow(qtrs) - trainLen
+
+# lists we are collecting
+trainSet <- list()
+testSet <- list()
+
+# identify and print the sets
+while( trainStart <= trainStop ) {
+  trainQ <- qtrs[seq(trainStart, length.out=trainLen), ]$QtrYear
+  testQ <- qtrs[seq(trainStart+trainLen, length.out=testLen), ]$QtrYear
+  
+  print( "Set:" )
+  print( trainQ ) 
+  print( testQ )
+  
+  # extract the training ans testing from df3
+  trainDF <- df3 %>% filter( QtrYear %in% trainQ )
+  testDF <- df3 %>% filter( QtrYear %in% testQ )
+  
+  key <- sprintf("SET_%d", trainStart)
+  
+  trainSet[[key]] <- trainDF 
+  testSet[[key]] <- testDF 
+    
+  trainStart <- trainStart + 1
+}
+
+```
+
+```{r include=FALSE}
+# iterating over the keys
+train_dfs <- as.list(rep("", length(trainSet)))
+test_dfs <-as.list(rep("", length(trainSet)))
+
+for(i in seq_along(trainSet)) {
+  aKey <-names(trainSet)[i]
+  train_dfs[[i]] <- trainSet[[aKey]]
+  test_dfs[[i]] <- testSet[[aKey]]
+} 
+```
+
+
+## Data - Train and Test 
+
+
+<span style="font-size: 18px;">
+I am going to quickly check the number of rows in one train/test set.  
+</span>
+
+```{r sample_print, echo=FALSE}
+print(sprintf("The number of cases in the first Train set: %s",nrow(train_dfs[[1]])))
+print(sprintf("The number of cases in the first Test set: %s",nrow(test_dfs[[1]])))
+```
+
+
+# GLM
+
+## Open_Close_PctChange 
+
+<span style="font-size: 18px;">
+I trained each 5 train set respectively, and combined the results in one single dataframe.  
+I selected **outliers** as those which are larger than 5 standard deviations. 
+I printed out each train set's RMSE and the number of outliers (combined).  
+</span>
+
+```{r include=FALSE}
+h2o.init(nthreads=-1, max_mem_size='4G')
+h2o.removeAll()
+```
+
+```{r include=FALSE}
+rmse_list <- as.list(rep("", length(train_dfs)))
+  
+for (i in seq_along(train_dfs)){
+
+  # get ready dataset
+  train_test <-ResponseAndData_All("Open_Close_PctChange", train_dfs[[i]], test_dfs[[i]])
+  
+  # train the model
+  results<- TrainAndPlot_3sd(train_test$pred, train_test$resp, 
+                                train_test$train.hex, train_test$test.hex, train_test$test)
+  
+  # Show the result
+  rmse_list[[i]] <- sprintf(" Model #%s RMSE: %s", i, results$sqrt_result )
+  
+  # Outlierss
+  std <- sd(results$diff_df$diff)
+  
+  if (exists("glm_ocpc")){
+    temp_ocpc = results$diff_df
+    glm_ocpc = rbind(glm_ocpc, temp_ocpc)
+    temp_outliers <- temp_ocpc %>%
+      filter(abs(diff)>5*std)
+    glm_ocpc_outliers=rbind(glm_ocpc_outliers, temp_outliers)
+  }
+  
+  if (!exists("glm_ocpc")){
+    glm_ocpc <- results$diff_df
+    glm_ocpc_outliers <- glm_ocpc %>%
+    filter(abs(diff)>5*std)
+    
+  }
+}
+```
+
+```{r}
+rmse_list
+
+```
+
+## Open_Close_PctChange 
+
+<span style="font-size: 18px;">
+I trained each 5 train set respectively, and combined the results in one single dataframe.  
+I selected **outliers** as those which are larger than 5 standard deviations. 
+I printed out each train set's RMSE and the number of outliers (combined).  
+</span>
+
+```{r}
+nrow1 <- nrow(glm_ocpc_outliers)
+print( sprintf("The number of outliers (larger than 5 STD) is %s", nrow1) )
+```
+
+
+## Open_Close_PctChange   
+
+
+<span style="font-size: 18px;">
+The below table shows the first $5$ rows of the detected outliers.  
+</span>
+
+
+```{r}
+kable(head(glm_ocpc_outliers), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE)
+```
+
+```{r include=FALSE}
+h2o.shutdown(prompt=TRUE)
+```
+
+## Daily_Return
+
+<span style="font-size: 18px;">
+I conducted the same modeling for the `Daily_Return` variable as well.  
+Again, I printed RMSE and the number of outliers. 
+</span>
+
+```{r include=FALSE}
+h2o.init(nthreads=-1, max_mem_size='4G')
+h2o.removeAll()
+```
+
+```{r include=FALSE}
+rmse_list <- as.list(rep("", length(train_dfs)))
+
+for (i in seq_along(train_dfs)){
+
+  # get ready dataset
+  train_test <-ResponseAndData_All("Daily_Return", train_dfs[[i]], test_dfs[[i]])
+  
+  # train the model
+  results<- TrainAndPlot_3sd(train_test$pred, train_test$resp, 
+                                train_test$train.hex, train_test$test.hex, train_test$test)
+  
+  # Show the result
+   rmse_list[[i]] <- sprintf(" Model #%s RMSE: %s", i, results$sqrt_result )
+  
+  # Outliers
+  std <- sd(results$diff_df$diff)
+  
+  if (exists("glm_daily")){
+   
+    temp_daily = results$diff_df
+    glm_daily = rbind(glm_daily, temp_daily)
+    
+    temp_outliers <- temp_daily %>%
+      filter(abs(diff)>5*std)
+    glm_daily_outliers=rbind(glm_daily_outliers, temp_outliers)
+    
+  }
+  
+  if (!exists("glm_daily")){
+    
+    glm_daily <- results$diff_df
+    
+    glm_daily_outliers <- glm_daily %>%
+    filter(abs(diff)>5*std)
+    
+  }
+}
+
+
+
+```
+
+```{r}
+rmse_list
+
+```
+
+## Daily_Return
+
+<span style="font-size: 18px;">
+I conducted the same modeling for the `Daily_Return` variable as well.  
+Again, I printed RMSE and the number of outliers. 
+</span>
+
+```{r}
+
+nrow2 <- nrow(glm_daily_outliers)
+print(sprintf("The number of outliers (larger than 5 STD) is %s", nrow2))
+```
+
+
+## Daily_Return
+
+<span style="font-size: 18px;">
+The below table shows the first 5 rows of the detected outliers.  
+</span>
+
+```{r echo=FALSE}
+kable(head(glm_daily_outliers), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE)
+```
+
+```{r include=FALSE}
+h2o.shutdown(prompt=TRUE)
+```
+
+# Random Forest
+
+## Random Forest
+
+
+<span style="font-size: 18px;">
+  
+  Although I am going to use the same target variables (`Open_Close_PctChange`, and `Daily_Return`)  
+  for the random forest, I selected some of the original variables as predictive variables.  
+  This is because non-valuable variables caused worse results for the random forests models.  
+</span>
+
+
+## Open_Close_PctChange 
+
+
+<span style="font-size: 18px;">
+As we can see from the below result, around $100$ outliers are detected in this case.  
+</span>
+
+```{r include=FALSE}
+h2o.init(nthreads=-1, max_mem_size='4G')
+h2o.removeAll()
+```
+
+```{r include=FALSE}
+resp <- "Open_Close_PctChange"
+pred <- c("Symbol", "DOW", "Sector",
+          "Open_Mean10", "Close_Mean10", 
+          "Open_Mean10_R", "Close_Mean10_R", 
+          "Open_EMA10", "Close_EMA10",
+          "Open_SMA10", "Close_SMA10")
+  
+for (i in seq_along(train_dfs)){
+
+  # get ready dataset
+  train_test <-Data_RF(train_dfs[[i]], test_dfs[[i]])
+
+  # train the model
+  results<- Train_Plot_RF(pred, resp, train_test$train.hex, train_test$test.hex, train_test$test)
+  
+  # Outliers
+  
+  std <- results$std
+  
+  if (exists("rf_ocpc")){
+    
+    temp_ocpc = results$diff_df
+    rf_ocpc = rbind(rf_ocpc, temp_ocpc)
+    
+    temp_outliers <- temp_ocpc %>%
+      filter(abs(diff)>5*std)
+    rf_ocpc_outliers = rbind(rf_ocpc_outliers, temp_outliers)
+  }
+  
+  if (!exists("rf_ocpc")){
+    rf_ocpc <- results$diff_df
+    rf_ocpc_outliers <- rf_ocpc %>%
+    filter(abs(diff)>5*std)
+    
+  }
+}
+
+
+```
+
+```{r}
+nrow3 <- nrow(rf_ocpc_outliers)
+print(sprintf("The number of outliers (larger than 5 STD) is %s",nrow3))
+```
+
+
+## Open_Close_PctChange
+
+<span style="font-size: 18px;">
+The below table shows detected outliers.  
+</span>
+
+
+```{r echo=FALSE}
+kable(head(rf_ocpc_outliers), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE)
+```
+
+```{r include=FALSE}
+h2o.shutdown(prompt=TRUE)
+```
+
+
+## Daily_Return
+
+<span style="font-size: 16px;">
+  Now, I will apply the same way to predict `Daily_Return`. 
+  Below number of outliers were detected as we can see from the below resutls.
+  In addition, the below table shows the first 5 rows of the detected outliers when the predictive variable is `Daily_Return`. 
+</span>
+
+
+```{r include=FALSE}
+h2o.init(nthreads=-1, max_mem_size='4G')
+h2o.removeAll()
+``` 
+
+```{r include=FALSE}
+
+resp <- "Daily_Return"
+pred <- c("Symbol", "DOW","Sector",
+          "Open_Mean10", "Close_Mean10", 
+          "Open_Mean10_R", "Close_Mean10_R", 
+          "Open_EMA10", "Close_EMA10",
+          "Open_SMA10", "Close_SMA10")
+  
+for (i in seq_along(train_dfs)){
+
+  # get ready dataset
+  train_test <-Data_RF(train_dfs[[i]], test_dfs[[i]])
+
+  # train the model
+  results<- Train_Plot_RF(pred, resp, train_test$train.hex, train_test$test.hex, train_test$test)
+  
+  # Outliers
+  
+  std <- results$std
+  
+  if (exists("rf_daily")){
+    
+    temp_daily = results$diff_df
+    rf_daily = rbind(rf_daily, temp_daily)
+    
+    temp_outliers <- temp_daily %>%
+      filter(abs(diff)>5*std)
+    rf_daily_outliers = rbind(rf_daily_outliers, temp_outliers)
+  }
+  
+  if (!exists("rf_daily")){
+    rf_daily <- results$diff_df
+    rf_daily_outliers <- rf_daily %>%
+    filter(abs(diff)>5*std)
+    
+  }
+}
+
+
+
+```
+
+```{r echo=FALSE}
+print(sprintf("The number of outliers (larger than 5 STD) is %s",nrow(rf_daily_outliers)))
+
+kable(head(rf_daily_outliers), "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE)
+```
+
+```{r include=FALSE}
+h2o.shutdown(prompt=FALSE)
+```
+
+
+
+# Business Insights
+
+## Daily_Return Results
+
+
+<span style="font-size: 18px;">
+Since both showed pretty much similar results, I will show only `Daily_Return` here.  
+I plotted the combined results from the two model (GLM and Random Forest) with the real values.  
+</span>
+
+```{r}
+DailyReturn_df <- data.frame(glm_prediction = glm_daily$predictions, 
+                           rf_prediction = rf_daily$predictions_rf,
+                           real_value= glm_daily$Daily_Return)
+
+DailyReturn_df <- DailyReturn_df %>%
+  mutate(middle_prediction = (glm_prediction + rf_prediction)/2,
+         indices=seq(nrow(DailyReturn_df))) %>%
+  select(indices, real_value, glm_prediction, rf_prediction, middle_prediction)
+  
+DailyReturn_df %>%
+  arrange(glm_prediction)%>%
+  ggplot(aes(x=glm_prediction))+
+  geom_point(aes(y=middle_prediction), color="red", alpha=0.5)+
+  geom_point(aes(y=real_value), color="blue", alpha=0.5)+
+  geom_line(aes(y=real_value), color="blue", linetype=2)+
+  annotate(geom="text", x=3.5, y=5, label="Real Value\nline", color="blue")+
+  annotate(geom="text", x=9, y=7.5, label="Predictions'\nCenter Points", color="red")+
+  ggtitle("Daily_Return: Predictions VS. Real Values")
+```
+
+
+## Error
+
+<span style="font-size: 16px;">
+If we calculate the euclidean distance between   
+ 1. GLM Predictions VS. Real Values  
+ 2. RF Predictions VS. Real Values  
+ 3. Averaged Predictions VS. Real Values  
+ As we can find from the below results, **glm** tends to predict more closely to the real values.  
+</span>  
+
+
+```{r echo=FALSE}
+print( sprintf("Error with the GLM model: %s", dist(rbind(DailyReturn_df$glm_prediction, DailyReturn_df$real_value))[[1]]) )
+
+print( sprintf ("Error with the Random Forest model: %s", dist(rbind(DailyReturn_df$rf_prediction, DailyReturn_df$real_value))[[1]]) )
+
+print( sprintf ("Error with the Combined model: %s", dist(rbind(DailyReturn_df$middle_prediction, DailyReturn_df$real_value))[[1]]) )
+```
+
+
+## Final Insights
+
+
+<span style="font-size: 16px;">
+Finally, I inner joined the two outlier results (`glm_outliers` and `rf_outliers`) to find the commonly detected outliers.  
+  Instead of looking at individual values, I decided to look at the `Sector` of the outliers, and look at the percentage of the outliers per each **sector**.  
+This would be interesting information for investors who would like to invest stocks based on their *risk sensitivity*. 
+
+</span>  
+
+
+```{r}
+daily_outliers_result <- glm_daily_outliers %>% inner_join(rf_daily_outliers, by=c("sector","symbol","Daily_Return")) %>%
+  select(date.x, sector, symbol, qrt_year.x, Daily_Return)
+
+daily_group <- glm_daily %>% 
+  group_by(sector) %>%
+  summarise(num_count=n())
+
+buz_daily <-daily_outliers_result %>%
+  group_by(sector) %>%
+  summarise(num_count=n()) %>%
+  right_join(daily_group, by="sector") %>%
+  mutate(percentage= round( (num_count.x)/num_count.y *100 , 3) )
+
+kable(buz_daily, "html") %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE)%>%
+  row_spec(7, bold = T, color = "white", background = "skyblue")
+```
