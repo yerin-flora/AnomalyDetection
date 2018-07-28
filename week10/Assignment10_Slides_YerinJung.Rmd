@@ -1,0 +1,374 @@
+---
+title: "Assignment 10"
+author: "Yerin Jung"
+date: "July 27, 2018"
+output: 
+  ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r packages, include=FALSE}
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week10")
+require(readr)
+require(dplyr)
+require(ggplot2)
+require(GGally)
+require(tidyquant)
+require(RcppRoll)
+require(TTR)
+require(RCurl)
+require(h2o)
+require(kableExtra)
+require(prettydoc)
+```
+
+
+
+## Contents
+
+- Data 
+  - Down-Sampling
+- GBM
+  - Modeling
+  - Grid-Search
+  - Best Model
+  - ROC and Precision-Recall
+  - Variable Importance and Partial Dependence Plots
+
+
+```{r dataset, include=FALSE}
+ccard <-read_csv("creditcard.csv")
+```
+
+
+
+# Data
+
+
+```{r include=FALSE}
+ccard$Class <-as.factor(ccard$Class)
+ccard <- ccard[,c(2:31)]
+```
+
+
+
+## Data - Down-Sampling
+
+<span style="font-size: 18px;">
+As we can see from the below table, we have an extremely unbalanced data.  
+When we look at a table of `Class` variable, fraud class($1$) take only $0.173$%.  
+Therefore,  
+  1. We need to do down-sampling to balance the imbalanced dataset.  
+  2. We need to come up with the right evaluation metrics later on.  
+</span>
+
+
+```{r}
+table(ccard$Class)
+```
+
+
+## Data - Down-Sampling
+
+
+<span style="font-size: 18px;">
+  This time, I slightly increased the samples size of `Class == 0`. I sampled $5500$ observations from the Class $0$.  
+</span>
+
+
+```{r}
+set.seed(101)
+ccard_0case <- ccard %>% filter(Class=='0')
+
+df2 <-ccard_0case[sample(nrow(ccard_0case), 5500), ]
+df<-rbind(df2,ccard[ccard$Class=='1',])
+
+table(df$Class)
+
+```
+
+
+
+# GBM
+
+
+```{r include=FALSE}
+h2o.init(nthreads=-1, max_mem_size='4G')
+```
+
+
+
+## GBM - Modeling
+
+<span style="font-size: 18px;">
+  
+  After initializing the h2o,  
+  1. I changed the dataset into h2o data frame format,      
+  2. split the dataset into `train`, `valid`, and `test` set, and  
+  3. set the response and predictive variables respectively.  
+</span>
+
+```{r include=FALSE}
+df.hex <-as.h2o(df)
+
+splits <- h2o.splitFrame(
+  data = df.hex, 
+  ratios = c(0.2,0.2),   
+    destination_frames = c("train", "valid", "test"), seed = 101
+)
+train <- splits[[1]]
+valid <- splits[[2]]
+test  <- splits[[3]]
+
+resp <- 'Class'
+pred <- setdiff(names(df), resp)
+```
+
+
+## GBM - Modeling   
+
+
+<span style="font-size: 18px;">
+  I tried a modeling with random hyper-parameters, and then printed auc on the validation data.   
+</span>
+
+
+```{r}
+gbm <- h2o.gbm(x = pred, y = resp, 
+               training_frame = train, 
+               validation_frame = valid,
+               learn_rate = .05, learn_rate_annealing =.99,
+               ntrees=500,
+               stopping_rounds = 5,
+               stopping_tolerance = 1e-4,
+               stopping_metric = "AUC", 
+               seed = 101)
+
+print(h2o.auc(gbm, valid = TRUE)) 
+```
+
+
+
+## GBM - Grid-Search
+
+<span style="font-size: 14px;">
+  To find the best combination of hyper-parameters, I am going to conduct grid-search.  
+  After doing the grid search, I sorted the model by descending order of AUC, to find the best model to use. 
+</span>
+
+```{r include=FALSE}
+hyper_params = list( ntrees = seq(100,1000,200), 
+                     max_depth=seq(2,15,3)   
+                     )
+  
+
+grid <- h2o.grid(
+  hyper_params = hyper_params,
+  
+  search_criteria = list(strategy = "Cartesian"),
+  
+  algorithm="gbm",
+  
+  grid_id="my_grid",
+  
+  # Below are is the same as h2o.gbm()
+  x = pred, 
+  y = resp, 
+  training_frame = train, 
+  validation_frame = valid,
+  learn_rate = 0.05,                                                         
+  learn_rate_annealing = 0.99, 
+  sample_rate=0.8,
+  col_sample_rate=0.8,
+  seed = 101,                                                             
+  stopping_rounds = 5,
+  stopping_tolerance = 1e-4,
+  stopping_metric = "AUC", 
+  score_tree_interval = 10                                                
+)
+```
+
+
+```{r fig.height=10}
+## sort the grid models by decreasing AUC
+sortedGrid <- h2o.getGrid("my_grid", sort_by="auc", decreasing = TRUE)    
+print(sortedGrid)
+```
+
+
+## GBM - Best Model
+
+<span style="font-size: 18px;">
+I set the best model as the one with the highest AUC from the grid-search result.  
+I printed the variable importances, the number of trees, and the maximum depth of the tree, used in my best model.  
+</span>
+
+```{r}
+best_model <- h2o.getModel(sortedGrid@model_ids[[1]])
+top_5<-best_model@model$variable_importances$variable[1:5]
+print( sprintf("The top 5 important variables: %s",paste(top_5,collapse=" "))) 
+```
+
+```{r}
+ntrees <- best_model@model$model_summary$number_of_trees
+max_depth <- best_model@model$model_summary$max_depth
+print( sprintf("In my best model, the number of trees is %s", ntrees) )
+print( sprintf(", and maximum depth of the tree is %s", max_depth) )
+```
+
+
+## GBM - Best Model
+
+
+<span style="font-size: 15px;">
+ If I compare the AUC results on validation data, we can find that the AUC has been improved.  
+</span>
+
+```{r}
+print(sprintf("The AUC with random hyper parameters was: %s", round(h2o.auc(gbm, valid = TRUE), 6) ))
+print(sprintf( "The AUC with the gird-search best model is: %s", round(h2o.auc(best_model, valid = TRUE),6) ))
+```
+
+
+## GBM - Best Model
+
+<span style="font-size: 18px;">
+Finally, I tested on my `test` data as well.
+</span>
+
+
+```{r}
+  
+my.perf = h2o.performance(best_model, test)
+
+print( sprintf("MSE: %s, RMSE: %s, LogLoss: %s", 
+               round(my.perf@metrics$MSE,5), 
+               round(my.perf@metrics$RMSE, 5),
+               round(my.perf@metrics$logloss,5))
+       )
+
+print( sprintf("AUC: %s, Gini: %s", 
+               round(my.perf@metrics$AUC,5),
+               round(my.perf@metrics$Gini,5))
+       )
+
+               
+```
+
+
+## ROC and Precision-Recall 
+
+<span style="font-size: 16px;">
+ I plotted both `ROC` and `Precision-Recall` curve as follows.  
+ 1. `ROC`: As we can see from the above plot, it is pretty much close to the top-left corner (Our AUC is around 0.98).  
+</span>
+
+
+```{r include=FALSE}
+tpr=as.data.frame(h2o.tpr(my.perf))
+fpr=as.data.frame(h2o.fpr(my.perf))
+ROC_out<-merge(tpr,fpr,by='threshold')
+
+
+precision=as.data.frame(h2o.precision(my.perf))
+recall=as.data.frame(h2o.recall(my.perf))
+PR_out<-merge(precision,recall,by='threshold')
+```
+
+```{r}
+ggplot(ROC_out, aes(x = fpr, y = tpr)) +
+  theme_bw() +
+  geom_line() +
+  ggtitle("ROC Curve")
+```
+
+
+## ROC and Precision-Recall 
+
+<span style="font-size: 16px;">
+ 2. `Precision-Recall`: I believe that since we have a quite imbalanced dataset, we better to look at the precision-recall curve since precision is directly influenced by class imbalance. Still, we can find that the graph is pretty much close to the upper-right corner, which is our optimum. 
+</span>
+
+```{r}
+ggplot(PR_out, aes(x = tpr, y = precision)) +
+  theme_bw() +
+  geom_line() +
+  ggtitle("Precision-Recall")
+```
+
+
+## Variable Importance 
+
+<span style="font-size: 16px;">
+  To conclude, I checked the Variable Importance and plotted Partial Dependence Plots.  
+  As we can see from the plot, `V14` was the most important variable in this model.  
+</span>
+
+```{r}
+h2o.varimp_plot(best_model, num_of_features = 6)
+```
+
+
+## Partial Dependence Plots
+
+<span style="font-size: 16px;">
+ First, I plotted the top 2 important variables together.
+</span>
+
+```{r fig.height=10}
+h2o.no_progress()
+imp_variables=best_model@model$variable_importances$variable[1:4]
+par(mfrow=c(2,2))
+imp_plot=h2o.partialPlot(object = best_model, data = test, cols = imp_variables, plot_stddev = TRUE)
+```
+
+## Partial Dependence Plots
+
+<span style="font-size: 16px;">
+ Then, I plotted some of the other variables (apart from top 2 important variables) altogether.  
+ As we can see from the graphs, the less important variables have brought almost no change in the response variable.
+</span>
+
+```{r fig.height=10}
+h2o.no_progress()
+par(mfrow=c(2,2))
+less_variables=setdiff(names(ccard), c(imp_variables,"Class"))
+less_plot=h2o.partialPlot(object = best_model, data = test, cols = less_variables[1:4], plot= TRUE, plot_stddev = TRUE)
+```
+
+## Partial Dependence Plots
+
+<span style="font-size: 16px;">
+If we plot without standard deviations, we can differentiate whether a predictive variable has positive or negative on the response variable.  
+</span>
+
+```{r fig.height=10}
+h2o.no_progress()
+imp_variables=best_model@model$variable_importances$variable[1:4]
+par(mfrow=c(2,2))
+imp_plot=h2o.partialPlot(object = best_model, data = test, cols = imp_variables, plot_stddev = FALSE)
+```
+
+## Partial Dependence Plots
+
+<span style="font-size: 16px;">
+If we plot without standard deviations, we can differentiate whether a predictive variable has positive or negative on the response variable.  
+</span>
+
+```{r fig.height=10}
+h2o.no_progress()
+par(mfrow=c(2,2))
+less_variables=setdiff(names(ccard), c(imp_variables,"Class"))
+less_plot=h2o.partialPlot(object = best_model, data = test, cols = less_variables[1:4], plot= TRUE, plot_stddev = FALSE)
+```
+
+```{r include=FALSE}
+h2o.shutdown(prompt=FALSE)
+```
+
+
+# Thank You!

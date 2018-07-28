@@ -1,0 +1,358 @@
+---
+title: "Assignment 9"
+author: "Yerin Jung"
+date: "July 21, 2018"
+output: 
+  ioslides_presentation
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+
+```{r packages, include=FALSE}
+setwd("/Users/Jung-yerin/Desktop/SUMMER_2018/AD/Week9")
+require(readr)
+require(dplyr)
+require(ggplot2)
+require(GGally)
+require(tidyquant)
+require(RcppRoll)
+require(TTR)
+require(RCurl)
+require(h2o)
+require(kableExtra)
+require(prettydoc)
+```
+
+
+
+## Contents
+
+- Data 
+  - Quick EDA
+  - Down-Sampling
+- Random Forest
+  - Modeling
+  - Grid-Search
+  - Best Model
+
+
+```{r dataset, include=FALSE}
+ccard <-read_csv("creditcard.csv")
+```
+
+
+
+# Data
+
+## Data - Quick EDA
+
+<span style="font-size: 18px;">
+  First, I looked at the summary statistics of credit card data and found two points to adjust.  
+  1. `Class` variable should be a factor rather than an integer. As such, I changed it to a factor.  
+  2. `Time` variable is not necessarily needed for this modeling. As such, I removed the entire column.    
+</span>
+
+```{r include=FALSE}
+ccard$Class <-as.factor(ccard$Class)
+ccard <- ccard[,c(2:31)]
+```
+
+```{r}
+kable(head(ccard), "html" ) %>%
+  kable_styling((bootstrap_options = c("striped","hover")), font_size = 9, full_width = FALSE) %>%
+  scroll_box(height = "80%", width = "70%")
+```
+
+
+## Data - Down-Sampling
+
+<span style="font-size: 18px;">
+As we can see from the below table, we have an extremely unbalanced data.  
+When we look at a table of `Class` variable, fraud class($1$) take only $0.173$%.  
+Therefore,  
+  1. We need to do down-sampling to balance the imbalanced dataset.  
+  2. We need to come up with the right evaluation metrics later on.  
+</span>
+
+
+```{r}
+table(ccard$Class)
+```
+
+
+## Data - Down-Sampling
+
+
+<span style="font-size: 18px;">
+Since the $1$ class has around $492$ observations, I sampled $5000$ cases from `Class == 0`.  
+</span>
+
+
+```{r}
+set.seed(101)
+ccard_0case <- ccard %>% filter(Class=='0')
+
+df2 <-ccard_0case[sample(nrow(ccard_0case), 5000), ]
+df<-rbind(df2,ccard[ccard$Class=='1',])
+
+table(df$Class)
+
+```
+
+
+
+# Random Forest
+
+
+```{r include=FALSE}
+h2o.init(nthreads=-1, max_mem_size='4G')
+```
+
+
+
+## RF - Modeling
+
+<span style="font-size: 18px;">
+  
+  After initializing the h2o,  
+  1. I changed the dataset into h2o data frame format,      
+  2. split the dataset into `train`, `valid`, and `test` set, and  
+  3. set the response and predictive variables respectively.  
+</span>
+
+```{r include=FALSE}
+df.hex <-as.h2o(df)
+
+splits <- h2o.splitFrame(
+  data = df.hex, 
+  ratios = c(0.3,0.3),   
+    destination_frames = c("train", "valid", "test"), seed = 101
+)
+train <- splits[[1]]
+valid <- splits[[2]]
+test  <- splits[[3]]
+
+resp <- 'Class'
+pred <- setdiff(names(df), resp)
+```
+
+
+## RF - Modeling   
+
+
+<span style="font-size: 18px;">
+ Then, I built a random forest model, using `h2o.randomForest`.  
+  Each hyper-parameter represents as follows. [(source)](https://www.kaggle.com/mlandry/random-forest-example)  
+  
+  1. `ntrees`: It determines the number of trees to grow.  
+  2. `max_depth`: It determines the maximum depth to grow the tree. The bigger, the smaller number of classes will be assigned in the leaf nodes.  
+  3. `mtries`: It selects the number of variables that would be sampled as candidate at each node split.  
+  4. `min_rows`: It determines the number of rows to assign to terminal nodes.  
+</span>
+
+
+```{r include=FALSE}
+rf_model <- h2o.randomForest(        
+      training_frame = train,       
+      validation_frame = valid,     
+      x=pred,                       
+      y=resp,                         
+      model_id = "rf_model",      
+      ntrees = 100,               
+      max_depth = 30,     
+      mtries = 4,
+      min_rows = 4,
+      stopping_rounds = 2,          
+      stopping_tolerance = 1e-2,    
+      score_each_iteration = T,     
+      seed=101
+      )                 
+
+```
+
+
+## RF - Modeling  
+
+<span style="font-size: 16px;">
+  After fitting the model, I looked at the performance metrics as follows.  
+</span>
+
+
+```{r}
+rf_perform <- h2o.performance(rf_model,test)
+print( sprintf("MSE: %s, RMSE: %s, LogLoss: %s", 
+               round(rf_perform@metrics$MSE,5), 
+               round(rf_perform@metrics$RMSE, 5),
+               round(rf_perform@metrics$logloss,5)
+       ) )
+print( sprintf("AUC: %s, Gini: %s", 
+               round(rf_perform@metrics$AUC,5),
+               round(rf_perform@metrics$Gini,5))
+       )
+```
+
+
+## RF - Grid-Search
+
+<span style="font-size: 18px;">
+To find the best combination of hyper-parameters, I am going to conduct grid-search.  
+For this assignment, I tried different ranges from three parameters: `ntrees`, `max_depth`, and `mtries`.  
+</span>
+
+```{r include=FALSE}
+hyper_params = list( ntrees = seq(100,1000,200), 
+                     max_depth=seq(10,30,5),
+                     mtries =seq(4,20,4))
+
+grid <- h2o.grid(
+  hyper_params = hyper_params,
+  
+  search_criteria = list(strategy = "Cartesian"),
+  
+  algorithm="randomForest",
+  
+  grid_id="rf_grid",
+  
+  x = pred, 
+  y = resp, 
+  training_frame = train, 
+  validation_frame = valid,
+  seed = 101,                                                             
+  stopping_rounds = 5,
+  stopping_tolerance = 1e-8,
+  stopping_metric = "AUC", 
+  score_tree_interval = 10       
+)
+```
+
+
+## RF - Grid-Search
+
+<span style="font-size: 18px;">
+After doing the grid search, I sorted the model by descending order of AUC, to find the best model to use.  
+</span>
+
+```{r fig.height=10}
+## sort the grid models by decreasing AUC
+sortedGrid <- h2o.getGrid("rf_grid", sort_by="auc", decreasing = TRUE)    
+print(sortedGrid@summary_table)
+```
+
+
+## RF - Best Model
+
+<span style="font-size: 18px;">
+I set the best model as the one with the highest AUC from the grid-search result.  
+I printed the variable importances, the number of trees, and the maximum depth of the tree, used in my best model.  
+</span>
+
+```{r}
+best_model <- h2o.getModel(sortedGrid@model_ids[[1]])
+top_5<-best_model@model$variable_importances$variable[1:5]
+print( sprintf("The top 5 important variables: %s",paste(top_5,collapse=" "))) 
+```
+
+```{r}
+ntrees <- best_model@model$model_summary$number_of_trees
+max_depth <- best_model@model$model_summary$max_depth
+print( sprintf("In my best model, the number of trees is %s, ", ntrees) )
+print( sprintf("and maximum depth of the tree is %s", max_depth) )
+```
+
+
+## RF - Best Model
+
+
+<span style="font-size: 15px;">
+In addition, I plotted `Training RMSE` and `Validation RMSE` along with the number of trees as follows.  
+</span>
+
+```{r}
+
+scoring_history <- as.data.frame(best_model@model$scoring_history)
+
+ggplot(scoring_history, aes(x=number_of_trees))+
+  geom_point(aes(y=training_rmse), color="black")+
+  geom_point(aes(y=validation_rmse), color="red")+
+  ylab("RMSE")+
+  xlab("Number of Trees")+
+  annotate("text", x=125, y=0.1275, label="Validation RMSE", color="red")+
+  annotate("text", x=125, y=0.115, label="Training RMSE", color="black")+
+  ggtitle("Training RMSE and Validation RMSE")
+```
+
+
+## RF - Best Model
+
+<span style="font-size: 18px;">
+  Finally, I tested on my `test` data to compare with the first random forest result, which I selected random hyperparameters.  
+  As we can see from the below result, we can find that overall results are improved.  
+  (For instance, `AUC` is improved from around 97% to 98%.) 
+</span>
+
+
+```{r}
+my.perf = h2o.performance(best_model, test)
+
+print( sprintf("MSE: %s, RMSE: %s, LogLoss: %s", 
+               round(my.perf@metrics$MSE,5), 
+               round(my.perf@metrics$RMSE, 5),
+               round(my.perf@metrics$logloss,5)
+       ))
+print( sprintf("AUC: %s, Gini: %s", 
+               round(my.perf@metrics$AUC,5),
+               round(my.perf@metrics$Gini,5))
+       )
+```
+
+
+## RF - Best Model
+
+<span style="font-size: 16px;">
+To conclude, I plotted both `ROC` and `Precision-Recall` curve.  
+ 1. `ROC`: As we can see from the above plot, it is pretty much close to the top-left corner (Our AUC is around 0.98).  
+</span>
+
+
+```{r include=FALSE}
+tpr=as.data.frame(h2o.tpr(my.perf))
+fpr=as.data.frame(h2o.fpr(my.perf))
+ROC_out<-merge(tpr,fpr,by='threshold')
+
+
+precision=as.data.frame(h2o.precision(my.perf))
+recall=as.data.frame(h2o.recall(my.perf))
+PR_out<-merge(precision,recall,by='threshold')
+``` 
+
+```{r}
+ggplot(ROC_out, aes(x = fpr, y = tpr)) +
+  theme_bw() +
+  geom_line() +
+  ggtitle("ROC Curve")
+```
+
+
+## RF - Best Model
+
+<span style="font-size: 16px;">
+ 2. `Precision-Recall`: I believe that since we have a quite imbalanced dataset, we better to look at the precision-recall curve since precision is directly influenced by class imbalance. Still, we can find that the graph is pretty much close to the upper-right corner, which is our optimum. 
+</span>
+
+```{r}
+ggplot(PR_out, aes(x = tpr, y = precision)) +
+  theme_bw() +
+  geom_line() +
+  ggtitle("Precision-Recall")
+```
+
+  
+```{r include=FALSE}
+h2o.shutdown(prompt=FALSE)
+```
+
+
+# Thank You!
